@@ -1,0 +1,1 @@
+//Generates random 6-character room codes like "ALPHA5"

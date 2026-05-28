@@ -1,0 +1,1 @@
+//The function that creates a unique SHA256 hash from device hardware + student ID.
