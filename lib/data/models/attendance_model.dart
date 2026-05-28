@@ -1,0 +1,1 @@
+//Represents the attendance submission JSON sent from student to lecturer's server.

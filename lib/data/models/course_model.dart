@@ -1,0 +1,1 @@
+//Represents a course from Supabase

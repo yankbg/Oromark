@@ -1,0 +1,1 @@
+//Defines the shape of your local SQLite tables using drift's Dart classes

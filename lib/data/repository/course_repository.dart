@@ -1,0 +1,1 @@
+//Fetches course list from Supabase, caches locally

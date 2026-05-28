@@ -1,0 +1,1 @@
+//Manages the full attendance lifecycle

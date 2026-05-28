@@ -1,0 +1,1 @@
+//A Dart class that represents a session JSON packet received via UDP

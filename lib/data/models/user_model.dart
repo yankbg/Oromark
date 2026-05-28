@@ -1,0 +1,1 @@
+//Represents the logged-in user (student or lecturer)

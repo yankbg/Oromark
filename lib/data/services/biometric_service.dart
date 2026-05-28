@@ -1,0 +1,1 @@
+//Talks to the phone's fingerprint sensor or Face ID via the local_auth package
