@@ -1,0 +1,1 @@
+//Contains ALL the logic for a student marking attendance.

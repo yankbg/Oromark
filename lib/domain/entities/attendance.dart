@@ -1,0 +1,1 @@
+//Pure Dart attendance record. StudentId, status (PRESENT/LATE/ABSENT), timestamp.
