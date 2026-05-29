@@ -1,0 +1,1 @@
+//Student name, student ID, registered device info, logout button

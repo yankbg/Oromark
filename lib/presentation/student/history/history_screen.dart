@@ -1,0 +1,1 @@
+//Shows the student their past attendance — date, course, status badge (PRESENT/LATE/ABSENT), and overall attendance percentage per course
