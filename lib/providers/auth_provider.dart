@@ -1,0 +1,1 @@
+//Holds the currently logged-in user from Supabase Auth
