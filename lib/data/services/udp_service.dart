@@ -1,5 +1,6 @@
 //most critical file in the project. handles udp broadcast
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,6 +9,7 @@ import 'package:oromark/core/constants/network_constants.dart';
 class UdpService {
   RawDatagramSocket? _socket;
   bool _isListening = false;
+  Timer? _timer;
 
   Future<void> startListening(Function(Map<String, dynamic>) onSessionReceived) async{
     if(_isListening) return;
@@ -32,4 +34,17 @@ class UdpService {
 
     });
   }
+
+  Future<void> startBroadcasting(Map<String, dynamic> sessionData) async{
+    _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+
+    String message = jsonEncode(sessionData);
+    List<int> data = utf8.encode(message);
+
+    if (_timer != null) return;
+    _timer = Timer.periodic(Duration(seconds: NetworkConstants.broadcastIntervalPresent), (timer) {
+      _socket!.send(data, InternetAddress(NetworkConstants.broadcastAddress), NetworkConstants.udpPort);
+    });
+  }
+
 }
