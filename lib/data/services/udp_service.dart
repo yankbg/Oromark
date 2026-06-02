@@ -36,15 +36,23 @@ class UdpService {
   }
 
   Future<void> startBroadcasting(Map<String, dynamic> sessionData) async{
+    if (_timer != null) return;
     _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
 
     String message = jsonEncode(sessionData);
     List<int> data = utf8.encode(message);
 
-    if (_timer != null) return;
     _timer = Timer.periodic(Duration(seconds: NetworkConstants.broadcastIntervalPresent), (timer) {
       _socket!.send(data, InternetAddress(NetworkConstants.broadcastAddress), NetworkConstants.udpPort);
     });
   }
+  void stopBroadcasting() {
+    _timer?.cancel();
+    _timer = null;
+    _socket?.close();
+    _socket = null;
+    _isListening = false;
+  }
+
 
 }
