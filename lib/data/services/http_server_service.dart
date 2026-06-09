@@ -1,9 +1,12 @@
 //The local HTTP server that runs on the lecturer's phone during sessions
+import 'dart:convert';
+import 'dart:io' as io;
 import 'dart:io';
-import 'package:oromark/core/constants/network_constants.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'dart:convert';
+import '../../core/constants/network_constants.dart';
+import '../database/app_database.dart';
+import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
 
@@ -21,6 +24,10 @@ class HttpServerService {
   // Track already-submitted students to prevent duplicates
   final Set<String> _submittedStudents = {};
 
+  String? _boundIp;
+  String? get boundIp => _boundIp;
+  bool get isRunning => _server != null;
+
   Future<void> startServer({
     required String sessionId,
     required String roomCode,
@@ -28,6 +35,9 @@ class HttpServerService {
     required DateTime lateCutoff,
     required AppDatabase db,
   }) async {
+    if (_server != null) {
+       await stopServer();
+    }
     _activeSessionId = sessionId;
     _activeRoomCode = roomCode;
     _presentCutoff = presentCutoff;
@@ -35,6 +45,8 @@ class HttpServerService {
     _db = db;
     _requestCount.clear();
     _submittedStudents.clear();
+
+    _boundIp = await _getLocalIp();
 
     var handler = Pipeline()
         .addMiddleware(logRequests())
@@ -135,12 +147,23 @@ class HttpServerService {
         : 'LATE';
 
     // ── STORE: Brief says "// Store attendance" but never does it
-    await _db!.insertAttendance(AttendanceRecordsCompanion.insert(
-      sessionId: data['sessionId'],
-      studentId: studentId,
-      status: status,
-      timestamp: now.millisecondsSinceEpoch,
-    ));
+    try {
+      await _db!.insertAttendance(
+        AttendanceRecordsCompanion.insert(
+          sessionId:         data['sessionId'] as String,
+          studentId:         studentId,
+          status:            status,
+          timestamp:         now.millisecondsSinceEpoch,
+        ),
+      );
+    } catch (e) {
+      // Database write failed — tell the student to retry
+      return Response.internalServerError(
+        body: jsonEncode({
+          'error': 'Failed to save record, please retry'
+        }),
+      );
+    }
 
     // Mark student as submitted so duplicates are blocked
     _submittedStudents.add(studentId);
@@ -154,12 +177,38 @@ class HttpServerService {
     }));
   }
 
-  void stopServer() {
-    _server?.close(force: true);
+  Future<void> stopServer() async {
+    await _server?.close(force: true);
     _server = null;
     _activeSessionId = null;
     _activeRoomCode = null;
     _requestCount.clear();
     _submittedStudents.clear();
+  }
+
+  String _extractIp(Request request) {
+    final info = request.context['shelf.io.connection_info'];
+    if (info is io.HttpConnectionInfo) {
+      return info.remoteAddress.address;
+    }
+    return 'unknown';
+  }
+  // Finds the phone's actual LAN IP on the campus WiFi
+  Future<String> _getLocalIp() async {
+    try {
+      final interfaces = await io.NetworkInterface.list(
+        type: io.InternetAddressType.IPv4,
+      );
+      for (final interface in interfaces) {
+        for (final addr in interface.addresses) {
+          // Skip loopback (127.x) and link-local (169.x)
+          if (!addr.isLoopback &&
+              !addr.address.startsWith('169.254')) {
+            return addr.address;
+          }
+        }
+      }
+    } catch (_) {}
+    return '0.0.0.0';
   }
 }
