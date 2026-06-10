@@ -26,3 +26,10 @@ class AttendanceRecords extends Table {
   // TextColumn get deviceFingerprint => text()();
   BoolColumn get synced => boolean().withDefault(const Constant(false))();
 }
+class EnrolledStudents extends Table {
+  IntColumn get id                => integer().autoIncrement()();
+  TextColumn get studentId        => text()();
+  TextColumn get courseCode       => text()();
+  TextColumn get fullName         => text()();
+  TextColumn get deviceFingerprint => text()();
+}

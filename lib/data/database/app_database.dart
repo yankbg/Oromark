@@ -9,14 +9,34 @@ import 'tables.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Sessions, AttendanceRecords])
+@DriftDatabase(tables: [Sessions, AttendanceRecords, EnrolledStudents])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    // Runs only on fresh install — creates all tables
+    onCreate: (m) async {
+      await m.createAll();
+    },
+
+    // Version 1 → 2: add enrolled_students table
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(enrolledStudents);
+      }
+    },
+
+    // Runs after every migration — good place for integrity checks
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
 
   // Watch attendance for a session (reactive — updates UI live)
   Stream<List<AttendanceRecord>> watchSessionAttendance(String sessionId) {
@@ -55,6 +75,14 @@ class AppDatabase extends _$AppDatabase {
       ) async {
     return (select(enrolledStudents)
       ..where((s) => s.courseCode.equals(courseCode)))
+        .get();
+  }
+  // Returns all records for a session — used by _computeAbsent
+  Future<List<AttendanceRecord>> getSessionAttendance(
+      String sessionId,
+      ) async {
+    return (select(attendanceRecords)
+      ..where((r) => r.sessionId.equals(sessionId)))
         .get();
   }
 }
