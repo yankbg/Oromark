@@ -46,7 +46,7 @@ class HttpServerService {
     _requestCount.clear();
     _submittedStudents.clear();
 
-    _boundIp = await _getLocalIp();
+    _boundIp = await getLocalIp();
 
     var handler = Pipeline()
         .addMiddleware(logRequests())
@@ -194,7 +194,7 @@ class HttpServerService {
     return 'unknown';
   }
   // Finds the phone's actual LAN IP on the campus WiFi
-  Future<String> _getLocalIp() async {
+  Future<String> getLocalIp() async {
     try {
       final interfaces = await io.NetworkInterface.list(
         type: io.InternetAddressType.IPv4,

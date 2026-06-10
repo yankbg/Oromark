@@ -1,7 +1,7 @@
 //Generates random 6-character room codes like "ALPHA5"
 import 'dart:math';
 
-class RoomCodeGenerator {
+
 
   String generateRoomCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -9,4 +9,3 @@ class RoomCodeGenerator {
     return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
   }
 
-}

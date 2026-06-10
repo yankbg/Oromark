@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   # State Management
   flutter_riverpod: ^2.4.0
+  riverpod_annotation: ^2.3.0
 
   # Local Database
   drift: ^2.14.0
@@ -86,6 +87,7 @@ dev_dependencies:
   # Code Generation for drift
   drift_dev: ^2.14.0
   build_runner: ^2.4.0
+  riverpod_generator: ^2.3.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

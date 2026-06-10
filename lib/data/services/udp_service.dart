@@ -34,6 +34,9 @@ class UdpService {
 
     });
   }
+  void switchToLateInterval() {
+    // TODO: implement changing interval
+  }
 
   Future<void> startBroadcasting(Map<String, dynamic> sessionData) async{
     if (_timer != null) return;
