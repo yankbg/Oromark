@@ -4,7 +4,6 @@
   
   import '../core/constants/network_constants.dart';
   import '../domain/entities/session_state.dart';
-  import '../data/services/http_server_service.dart';
   import '../data/database/app_database.dart';
   import '../providers/app_database_provider.dart';
   import '../providers/http_server_provider.dart';
@@ -29,13 +28,7 @@
       final lateCutoff =
       now.add(Duration(minutes: NetworkConstants.lateMinutes));
   
-      state = SessionState.active(
-        sessionId: sessionId,
-        courseCode: courseCode,
-        roomCode: roomCode,
-        presentCutoff: presentCutoff,
-        lateCutoff: lateCutoff,
-      );
+
   
       await ref.read(httpServerProvider).startServer(
         sessionId: sessionId,
@@ -51,6 +44,14 @@
         state = SessionState.idle();
         throw Exception('Not connected to WiFi. Connect and try again.');
       }
+
+      state = SessionState.active(
+        sessionId: sessionId,
+        courseCode: courseCode,
+        roomCode: roomCode,
+        presentCutoff: presentCutoff,
+        lateCutoff: lateCutoff,
+      );
   
       await ref.read(udpServiceProvider).startBroadcasting({
         'sessionId': sessionId,
