@@ -11,6 +11,8 @@ class CourseListScreen extends StatefulWidget {
 class _CourseListScreenState extends State<CourseListScreen> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Scaffold(
+        body: Center(child: Text('Lecturer Home — coming soon')),
+    );;
   }
 }
