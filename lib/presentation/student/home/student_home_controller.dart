@@ -108,7 +108,11 @@ class StudentHomeController extends ChangeNotifier {
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────────
-
+  void confirmAttendance() {
+    confirmed = true;      // disables the button in home
+    navIndex = 1;          // switch to History tab
+    notifyListeners();
+  }
 
   void setNavIndex(int i) {
     navIndex = i;
