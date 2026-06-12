@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_colors.dart';
 import 'student_home_controller.dart';
 import 'session_card.dart';
+import 'confirmation_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -62,7 +63,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
                     SessionCard(
                       session: _controller.session!,
                       confirmed: _controller.confirmed,
-                      onConfirm: _controller.confirmAttendance,
+                      onConfirm: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ConfirmationScreen(session: _controller.session!),
+                        ),
+                      ),
                     ),
                   ],
                 ],

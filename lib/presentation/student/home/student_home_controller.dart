@@ -108,13 +108,7 @@ class StudentHomeController extends ChangeNotifier {
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────────
-  void confirmAttendance() {
-    HapticFeedback.mediumImpact();
-    confirmed = true;
-    _countdownTicker?.cancel();
-    // TODO: call ConfirmAttendanceUseCase → HTTP POST → local DB insert
-    notifyListeners();
-  }
+
 
   void setNavIndex(int i) {
     navIndex = i;
