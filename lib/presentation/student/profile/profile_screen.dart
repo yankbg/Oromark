@@ -36,7 +36,7 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar:  _BottomNav(
+      bottomNavigationBar:  BottomNav(
         selectedIndex: 2, // profile is index 2
         onTap: (i) {
           if (i == 0) {
@@ -397,191 +397,83 @@ class _SignOutTile extends StatelessWidget {
   }
 }
 
-// class _ProfileBottomNav extends StatelessWidget {
-//   const _ProfileBottomNav();
+
+// class BottomNav extends StatelessWidget {
+//   final int selectedIndex;
+//   final ValueChanged<int> onTap;
+//
+//   const BottomNav({required this.selectedIndex, required this.onTap});
+//
+//   static const _items = [
+//     (icon: Icons.home_rounded,    label: 'Home'),
+//     (icon: Icons.history_rounded, label: 'History'),
+//     (icon: Icons.person_rounded,  label: 'Profile'),
+//   ];
 //
 //   @override
 //   Widget build(BuildContext context) {
-//     // TODO: wire to your controller if you want shared navIndex
 //     return Container(
-//       height: 64,
 //       decoration: const BoxDecoration(
 //         color: AppColors.bgPrimary,
-//         boxShadow: [
-//           BoxShadow(
-//             color: Color(0x14000000),
-//             blurRadius: 8,
-//             offset: Offset(0, -2),
-//           ),
-//         ],
+//         border: Border(top: BorderSide(color: Color(0xFFE2E8E4), width: 1)),
 //       ),
 //       child: SafeArea(
 //         top: false,
-//         child: Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceAround,
-//           children: [
-//             _NavItem(
-//               icon: Icons.home,
-//               label: 'Home',
-//               active: false,
-//               onTap: () {
-//                 // TODO: navigate or change tab to home
-//                 Navigator.of(context).push(
-//                   MaterialPageRoute(
-//                     builder: (_) => const StudentHomeScreen(),
+//         child: SizedBox(
+//           height: 62,
+//           child: Row(
+//             mainAxisAlignment: MainAxisAlignment.spaceAround,
+//             children: List.generate(_items.length, (i) {
+//               final active = selectedIndex == i;
+//               final item   = _items[i];
+//               return GestureDetector(
+//                 onTap: () => onTap(i),
+//                 behavior: HitTestBehavior.opaque,
+//                 child: SizedBox(
+//                   width: 80,
+//                   child: Column(
+//                     mainAxisAlignment: MainAxisAlignment.center,
+//                     children: [
+//                       AnimatedContainer(
+//                         duration: const Duration(milliseconds: 180),
+//                         padding: const EdgeInsets.symmetric(
+//                             horizontal: 18, vertical: 4),
+//                         decoration: BoxDecoration(
+//                           color: active
+//                               ? AppColors.primary.withOpacity(0.10)
+//                               : Colors.transparent,
+//                           borderRadius: BorderRadius.circular(99),
+//                         ),
+//                         child: Icon(
+//                           item.icon,
+//                           size: 23,
+//                           color: active
+//                               ? AppColors.primary
+//                               : AppColors.textSecondary,
+//                         ),
+//                       ),
+//                       const SizedBox(height: 2),
+//                       Text(
+//                         item.label,
+//                         style: TextStyle(
+//                           fontSize: 11,
+//                           fontWeight: active
+//                               ? FontWeight.w600
+//                               : FontWeight.w400,
+//                           color: active
+//                               ? AppColors.primary
+//                               : AppColors.textSecondary,
+//                         ),
+//                       ),
+//                     ],
 //                   ),
-//                 );
-//               },
-//             ),
-//             _NavItem(
-//               icon: Icons.history,
-//               label: 'History',
-//               active: false,
-//               onTap: () {
-//                 // TODO: navigate or change tab to history
-//                 Navigator.of(context).push(
-//                   MaterialPageRoute(
-//                     builder: (_) => const HistoryScreen(),
-//                   ),
-//                 );
-//               },
-//             ),
-//             _NavItem(
-//               icon: Icons.person,
-//               label: 'Profile',
-//               active: true,
-//               onTap: () {
-//                 // already here
-//               },
-//             ),
-//           ],
+//                 ),
+//               );
+//             }),
+//           ),
 //         ),
 //       ),
 //     );
 //   }
 // }
-class _BottomNav extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onTap;
 
-  const _BottomNav({required this.selectedIndex, required this.onTap});
-
-  static const _items = [
-    (icon: Icons.home_rounded,    label: 'Home'),
-    (icon: Icons.history_rounded, label: 'History'),
-    (icon: Icons.person_rounded,  label: 'Profile'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bgPrimary,
-        border: Border(top: BorderSide(color: Color(0xFFE2E8E4), width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 62,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_items.length, (i) {
-              final active = selectedIndex == i;
-              final item   = _items[i];
-              return GestureDetector(
-                onTap: () => onTap(i),
-                behavior: HitTestBehavior.opaque,
-                child: SizedBox(
-                  width: 80,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: active
-                              ? AppColors.primary.withOpacity(0.10)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Icon(
-                          item.icon,
-                          size: 23,
-                          color: active
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: active
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: active
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = active ? AppColors.primary.withOpacity(0.12) : Colors.transparent;
-    final color = active ? AppColors.primary : AppColors.textSecondary;
-
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: color,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

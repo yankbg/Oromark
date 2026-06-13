@@ -7,6 +7,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oromark/data/models/course_model.dart';
+import 'package:oromark/presentation/lecturer/courses/course_detail_screen.dart';
+import 'package:oromark/presentation/lecturer/session/select_course_screen.dart';
+import 'package:oromark/presentation/lecturer/session/start_session_sheet.dart';
 import '../../../core/theme/app_colors.dart';
 import 'course_card.dart';
 import 'course_controller.dart';
@@ -37,32 +41,35 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
 
   // ── Session start ───────────────────────────────────────────────────────
 
+  // void _startSession(String courseCode, String courseName) {
+  //   // TODO: ref.read(sessionNotifierProvider.notifier)
+  //   //           .startSession(courseCode, courseName);
+  //   //       Navigator.pushNamed(context, '/lecturer/session');
+  //   Navigator.of(context).push(
+  //     MaterialPageRoute(builder: (_) =>  StartSessionSheet()),
+  //   );
+  // }
   void _startSession(String courseCode, String courseName) {
-    // TODO: ref.read(sessionNotifierProvider.notifier)
-    //           .startSession(courseCode, courseName);
-    //       Navigator.pushNamed(context, '/lecturer/session');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Starting session for $courseName…'),
-        backgroundColor: AppColors.primary,
-        behavior:        SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
+    // Find the full CourseModel so the sheet can pre-select it
+    final courses = ref.read(courseControllerProvider).courses;
+    final course  = courses.firstWhere(
+          (c) => c.courseCode == courseCode,
+      orElse: () => CourseModel(
+        courseCode: courseCode,
+        courseName: courseName,
       ),
     );
+    StartSessionSheet.show(context, ref, preSelected: course);
   }
 
   // ── View details ────────────────────────────────────────────────────────
 
-  void _viewDetails(String courseCode) {
+  void _viewDetails(CourseModel course) {
     // TODO: Navigator.pushNamed(context, '/lecturer/reports',
     //           arguments: courseCode);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$courseCode details — coming soon'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CourseDetailScreen(course: course),
       ),
     );
   }
@@ -101,7 +108,7 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: _BottomNav(
+      bottomNavigationBar: BottomNav(
         selectedIndex: _navIndex,
         onTap:         _onNavTap,
       ),
@@ -258,7 +265,7 @@ class _CourseBody extends StatelessWidget {
   final CourseListState state;
   final Future<void> Function() onRefresh;
   final void Function(String code, String name) onStartSession;
-  final void Function(String code)              onViewDetails;
+  final void Function(CourseModel course)              onViewDetails;
 
   const _CourseBody({
     required this.state,
@@ -385,7 +392,7 @@ class _CourseBody extends StatelessWidget {
                 index:          index,
                 onStartSession: () => onStartSession(
                     course.courseCode, course.courseName),
-                onViewDetails:  () => onViewDetails(course.courseCode),
+                onViewDetails:  () => onViewDetails(course),
               ),
             );
           }),
@@ -470,11 +477,11 @@ class _WelcomeHeader extends StatelessWidget {
 
 // ── Bottom navigation ─────────────────────────────────────────────────────────
 
-class _BottomNav extends StatelessWidget {
+class BottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
 
-  const _BottomNav({required this.selectedIndex, required this.onTap});
+  const BottomNav({required this.selectedIndex, required this.onTap});
 
   static const _items = [
     (icon: Icons.home_rounded,           label: 'Home'),

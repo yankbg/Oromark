@@ -159,7 +159,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
       // Bottom nav — History tab is active
-      bottomNavigationBar: _BottomNav(
+      bottomNavigationBar: BottomNav(
         selectedIndex: 1, // History is index 1
         onTap: (i) {
           if (i == 0) {
@@ -526,11 +526,11 @@ class _EmptyState extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bottom nav — shared with StudentHomeScreen
 // ─────────────────────────────────────────────────────────────────────────────
-class _BottomNav extends StatelessWidget {
+class BottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
 
-  const _BottomNav({required this.selectedIndex, required this.onTap});
+  const BottomNav({required this.selectedIndex, required this.onTap});
 
   static const _items = [
     (icon: Icons.home_rounded,    label: 'Home'),
