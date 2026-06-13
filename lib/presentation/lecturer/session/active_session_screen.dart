@@ -11,9 +11,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import 'session_controller.dart';
 import 'session_stats.dart';
+import '../../../data/models/course_model.dart';
 
 class ActiveSessionScreen extends ConsumerStatefulWidget {
-  const ActiveSessionScreen({super.key});
+  final CourseModel course;
+  final Duration duration;
+  final String? room;
+  const ActiveSessionScreen({
+    super.key,
+    required this.course,
+    required this.duration,
+    this.room,
+  });
 
   @override
   ConsumerState<ActiveSessionScreen> createState() =>
@@ -117,6 +126,8 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
               onStartLate: () => ref
                   .read(sessionControllerProvider.notifier)
                   .startLateWindow(),
+              course: widget.course,
+              roomOverride: widget.room,
             ),
           ),
         ],
@@ -224,6 +235,8 @@ class _Body extends StatelessWidget {
   final ValueChanged<String>        onSearch;
   final ValueChanged<CheckInStatus?> onFilter;
   final VoidCallback                onStartLate;
+  final CourseModel                 course;
+  final String?                     roomOverride;
 
   const _Body({
     required this.state,
@@ -231,16 +244,24 @@ class _Body extends StatelessWidget {
     required this.onSearch,
     required this.onFilter,
     required this.onStartLate,
+    required this.course,
+    this.roomOverride,
   });
 
   @override
   Widget build(BuildContext context) {
+    final startedAt = state.startedAt ?? DateTime.now();
+    final room      = roomOverride ?? state.room ?? 'Room A204';
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
 
         // ── Course header ─────────────────────────────────────
-        CourseHeaderCard(state: state),
+        CourseHeaderCard(
+          course: course,
+          room: room,
+          startedAt: startedAt,
+        ),
         const SizedBox(height: 12),
 
         // ── Live status (teal hero) ───────────────────────────

@@ -40,16 +40,8 @@ class StartSessionSheet {
 
 const _kCourses = [
   CourseModel(
-    courseCode:    'CS301',
-    courseName:    'Software Engineering',
-    group:         'Group A',
-    enrolled:      60,
-    avgAttendance: 87,
-    lastSessionAt: '2 days ago',
-  ),
-  CourseModel(
     courseCode:    'CS202',
-    courseName:    'Database Systems',
+    courseName:    'Data Structures',
     group:         'Group B',
     enrolled:      45,
     avgAttendance: 92,
@@ -63,14 +55,24 @@ const _kCourses = [
     avgAttendance: 85,
     lastSessionAt: null,
   ),
+
   CourseModel(
-    courseCode:    'CS312',
-    courseName:    'Computer Networks',
-    group:         'Group C',
-    enrolled:      38,
-    avgAttendance: 78,
-    lastSessionAt: '1 week ago',
+    courseCode:    'CS301',
+    courseName:    'Software Engineering',
+    group:         'Group A',
+    enrolled:      60,
+    avgAttendance: 87,
+    lastSessionAt: '2 days ago',
   ),
+  CourseModel(
+    courseCode:    'CS405',
+    courseName:    'Network Security',
+    group:         'Final Year',
+    enrolled:      32,
+    avgAttendance: 85,
+    lastSessionAt: null,
+  ),
+
 ];
 
 // ── Duration options ──────────────────────────────────────────────────────────
@@ -124,6 +126,15 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
     HapticFeedback.mediumImpact();
     setState(() => _isStarting = true);
 
+    // Map the dropdown index to a real Duration
+    final duration = switch (_durationIdx) {
+      0 => const Duration(hours: 1),
+      1 => const Duration(minutes: 90),
+      2 => const Duration(hours: 2),
+      _ => const Duration(hours: 1),
+    };
+    final room = _roomCtrl.text.trim().isEmpty ? null : _roomCtrl.text.trim();
+
     // [MOCK] — replace with sessionNotifier.startSession()
     await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
@@ -131,8 +142,12 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
     HapticFeedback.heavyImpact();
 
     Navigator.of(context).pop();
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) =>  const ActiveSessionScreen()),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) =>  ActiveSessionScreen(
+        course: _selected!,   // full CourseModel from list/detail
+        duration: duration,
+        room: room,
+      )),
     );
   }
 

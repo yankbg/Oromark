@@ -75,6 +75,14 @@ const _kMockCourses = [
     avgAttendance: 87,
     lastSessionAt: '2 days ago',
   ),
+  CourseModel(
+    courseCode:    'CS405',
+    courseName:    'Cloud Computing',
+    group:         'Final Year',
+    enrolled:      32,
+    avgAttendance: 85,
+    lastSessionAt: null,
+  ),
 ];
 
 // ── Notifier ─────────────────────────────────────────────────────────────────

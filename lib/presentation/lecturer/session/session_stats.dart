@@ -5,24 +5,33 @@
 //   presentation/lecturer/session/session_stats.dart
 
 import 'package:flutter/material.dart';
+import 'package:oromark/data/models/course_model.dart';
 import '../../../core/theme/app_colors.dart';
 import 'session_controller.dart';
 
 // ── Course header card ────────────────────────────────────────────────────────
 
 class CourseHeaderCard extends StatelessWidget {
-  final ActiveSessionState state;
-  const CourseHeaderCard({super.key, required this.state});
+  final CourseModel course;
+  final String room;
+  final DateTime startedAt;
+
+  const CourseHeaderCard({
+    super.key,
+    required this.course,
+    required this.room,
+    required this.startedAt,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final h = state.startedAt.hour > 12
-        ? state.startedAt.hour - 12
-        : state.startedAt.hour == 0
+    final h = startedAt.hour > 12
+        ? startedAt.hour - 12
+        : startedAt.hour == 0
         ? 12
-        : state.startedAt.hour;
-    final m    = state.startedAt.minute.toString().padLeft(2, '0');
-    final ampm = state.startedAt.hour >= 12 ? 'PM' : 'AM';
+        : startedAt.hour;
+    final m    = startedAt.minute.toString().padLeft(2, '0');
+    final ampm = startedAt.hour >= 12 ? 'PM' : 'AM';
 
     return Container(
       padding:     const EdgeInsets.all(16),
@@ -35,7 +44,7 @@ class CourseHeaderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${state.courseCode} · ${state.courseName}',
+            '${course.courseCode} · ${course.courseName}',
             style: const TextStyle(
               fontFamily:  'Inter',
               fontSize:    20,
@@ -49,7 +58,7 @@ class CourseHeaderCard extends StatelessWidget {
             children: [
               _MetaChip(
                 icon:  Icons.meeting_room_rounded,
-                label: 'Room ${state.room}',
+                label: 'Room $room',
               ),
               const SizedBox(width: 16),
               _MetaChip(
