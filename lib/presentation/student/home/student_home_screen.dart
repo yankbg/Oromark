@@ -99,7 +99,7 @@
                   );
                 } else if (index == 2) {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    MaterialPageRoute(builder: (_) =>  ProfileScreen()),
                   );
                 }
               },
@@ -120,6 +120,7 @@
       return Container(
         color: AppColors.bgPrimary,
         child: SafeArea(
+          top: true,
           bottom: false,
           child: Container(
             height: 60,

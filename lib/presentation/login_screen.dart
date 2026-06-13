@@ -118,32 +118,34 @@ class _Header extends StatelessWidget {
             child: Stack(
               children: [
                 ..._buildRings(),
-                Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment:  MainAxisAlignment.end,
-                      children: [
-                        Image.asset(
-                          'assets/oromark.jpg',
-                          height: 30,
-                          fit:    BoxFit.contain,
-                          colorBlendMode: BlendMode.srcIn,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Signal-based attendance · IUEA',
-                          style: TextStyle(
-                            fontSize:      13,
-                            fontWeight:    FontWeight.w400,
-                            // use white with reduced opacity for the header
-                            color: Colors.white.withOpacity(0.65),
-                            letterSpacing: 0.3,
+                Positioned.fill(
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment:  MainAxisAlignment.end,
+                        children: [
+                          Image.asset(
+                            'assets/oromark.jpg',
+                            height: 60,
+                            fit:    BoxFit.contain,
+                            colorBlendMode: BlendMode.srcIn,
                           ),
-                        ),
-                        const SizedBox(height: 32),
-                      ],
-                    ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Signal-based attendance · IUEA',
+                            style: TextStyle(
+                              fontSize:      13,
+                              fontWeight:    FontWeight.w400,
+                              // use white with reduced opacity for the header
+                              color: Colors.white.withOpacity(0.65),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+                        ],
+                      ),
+                  ),
                 )
               ],
             ),

@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:oromark/presentation/student/home/student_home_screen.dart';
+import 'package:oromark/presentation/student/profile/profile_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import 'history_controller.dart';
 import 'history_item.dart';
@@ -160,8 +162,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
       bottomNavigationBar: _BottomNav(
         selectedIndex: 1, // History is index 1
         onTap: (i) {
-          if (i == 0) Navigator.of(context).pop(); // back to Home
-          // i == 2 → Profile (TODO)
+          if (i == 0) {
+            // back to Home
+            Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const StudentHomeScreen(),
+                ));
+          }
+          else if(i == 2){
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                  builder: (_) => const ProfileScreen(),
+              )
+            );
+          }
         },
       ),
     );
