@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/course_model.dart';
+import 'active_session_screen.dart';
 
 // ── Public entry-point ────────────────────────────────────────────────────────
 
@@ -128,16 +129,10 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
     if (!mounted) return;
 
     HapticFeedback.heavyImpact();
-    Navigator.of(context).pop();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content:         Text('Session started for ${_selected!.courseName}'),
-        backgroundColor: AppColors.primary,
-        behavior:        SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
+    Navigator.of(context).pop();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) =>  const ActiveSessionScreen()),
     );
   }
 
@@ -203,7 +198,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                       decoration: InputDecoration(
                         hintText:  'Search courses…',
                         hintStyle: const TextStyle(
-                          fontFamily: 'Inter',
                           fontSize:   14,
                           color:      AppColors.textTertiary,
                         ),
@@ -285,7 +279,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                             const Text(
                               'ROOM CODE (OPTIONAL)',
                               style: TextStyle(
-                                fontFamily:    'Inter',
                                 fontSize:      10,
                                 fontWeight:    FontWeight.w600,
                                 color:         AppColors.textSecondary,
@@ -298,7 +291,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                               textCapitalization: TextCapitalization.characters,
                               maxLength:          8,
                               style: const TextStyle(
-                                fontFamily:  'Inter',
                                 fontSize:    14,
                                 fontWeight:  FontWeight.w600,
                                 color:       AppColors.textPrimary,
@@ -307,7 +299,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                                 hintText:    'e.g. HALL-A',
                                 counterText: '',
                                 hintStyle: const TextStyle(
-                                  fontFamily: 'Inter',
                                   fontSize:   13,
                                   color:      AppColors.textTertiary,
                                 ),
@@ -523,7 +514,6 @@ class _CourseItem extends StatelessWidget {
                       Text(
                         course.courseCode,
                         style: const TextStyle(
-                          fontFamily:    'Inter',
                           fontSize:      13,
                           fontWeight:    FontWeight.w700,
                           color:         AppColors.primary,
@@ -535,7 +525,6 @@ class _CourseItem extends StatelessWidget {
                         child: Text(
                           course.courseName,
                           style: const TextStyle(
-                            fontFamily:  'Inter',
                             fontSize:    14,
                             fontWeight:  FontWeight.w500,
                             color:       AppColors.textPrimary,
@@ -576,7 +565,6 @@ class _CourseItem extends StatelessWidget {
                         Text(
                           'Last: ${course.lastSessionAt}',
                           style: TextStyle(
-                            fontFamily: 'Inter',
                             fontSize:   12,
                             color: isSelected
                                 ? AppColors.primary.withOpacity(0.8)
