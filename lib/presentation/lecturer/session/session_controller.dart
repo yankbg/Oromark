@@ -267,6 +267,46 @@ class SessionController extends StateNotifier<ActiveSessionState> {
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
+class SessionSummaryState {
+  final String            courseCode;
+  final String            courseName;
+  final DateTime          startedAt;
+  final DateTime          endedAt;
+  final int               presentCount;
+  final int               lateCount;
+  final int               enrolled;
+  final List<StudentEntry> absentStudents;
+
+  const SessionSummaryState({
+    required this.courseCode,
+    required this.courseName,
+    required this.startedAt,
+    required this.endedAt,
+    required this.presentCount,
+    required this.lateCount,
+    required this.enrolled,
+    required this.absentStudents,
+  });
+
+  int get absentCount => enrolled - presentCount - lateCount;
+
+  /// Duration in minutes
+  int get durationMinutes =>
+      endedAt.difference(startedAt).inMinutes;
+
+  /// Percentage of students present
+  double get presentPercentage =>
+      presentCount / enrolled;
+
+  /// Percentage of students late
+  double get latePercentage =>
+      lateCount / enrolled;
+
+  /// Percentage of students absent
+  double get absentPercentage =>
+      absentCount / enrolled;
+}
+
 final sessionControllerProvider =
 StateNotifierProvider<SessionController, ActiveSessionState>(
       (_) => SessionController(),

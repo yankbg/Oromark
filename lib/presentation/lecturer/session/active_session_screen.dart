@@ -12,6 +12,7 @@ import '../../../core/theme/app_colors.dart';
 import 'session_controller.dart';
 import 'session_stats.dart';
 import '../../../data/models/course_model.dart';
+import 'session_summary_screen.dart';
 
 class ActiveSessionScreen extends ConsumerStatefulWidget {
   final CourseModel course;
@@ -42,6 +43,7 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
   // ── End session ─────────────────────────────────────────────────────────
 
   Future<void> _confirmEndSession() async {
+    final state = ref.read(sessionControllerProvider);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -90,12 +92,35 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
       ),
     );
 
+    // if (confirmed == true && mounted) {
+    //   await ref
+    //       .read(sessionControllerProvider.notifier)
+    //       .endSession(() {
+    //     if (mounted) Navigator.of(context).pop();
+    //   });
+    // }
     if (confirmed == true && mounted) {
-      await ref
-          .read(sessionControllerProvider.notifier)
-          .endSession(() {
-        if (mounted) Navigator.of(context).pop();
-      });
+      // [MOCK] — replace with real sessionNotifier.endSession()
+      final summary = SessionSummaryState(
+        courseCode: state.courseCode,
+        courseName: state.courseName,
+        startedAt: state.startedAt,
+        endedAt: DateTime.now(),
+        presentCount: state.presentCount,
+        lateCount: state.lateCount,
+        enrolled: state.enrolled,
+        absentStudents: state.students
+            .where((s) => s.status == CheckInStatus.notCheckedIn)
+            .toList(),
+      );
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => SessionSummaryScreen(state: summary),
+          ),
+        );
+      }
     }
   }
 
