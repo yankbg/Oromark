@@ -185,7 +185,6 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
               const Text(
                 'Attendance Manager',
                 style: TextStyle(
-                  fontFamily:  'Inter',
                   fontSize:    18,
                   fontWeight:  FontWeight.w700,
                   color:       AppColors.primary,
@@ -206,7 +205,6 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
                   child: Text(
                     'DN',
                     style: TextStyle(
-                      fontFamily:  'Inter',
                       fontSize:    12,
                       fontWeight:  FontWeight.w700,
                       color:       AppColors.primary,
@@ -240,31 +238,33 @@ class _BottomActionBar extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Container(
-      color:      AppColors.bgSecondary,
+      color: AppColors.bgSecondary,
       padding: EdgeInsets.only(
         left:   16,
         right:  16,
         top:    16,
         bottom: 16 + MediaQuery.of(context).padding.bottom,
       ),
-      child: SafeArea(
-        top: false,
-        child: screenWidth > 600
-            ? _DesktopLayout(
-          onExportPDF:  onExportPDF,
-          onExportCSV:  onExportCSV,
-          onNewSession: onNewSession,
-        )
-            : _MobileLayout(
-          onExportPDF:  onExportPDF,
-          onExportCSV:  onExportCSV,
-          onNewSession: onNewSession,
-        ),
+      child: screenWidth < 600
+          ? _MobileLayout(
+        onExportPDF:  onExportPDF,
+        onExportCSV:  onExportCSV,
+        onNewSession: onNewSession,
+      )
+          : screenWidth < 1024
+          ? _TabletLayout(
+        onExportPDF:  onExportPDF,
+        onExportCSV:  onExportCSV,
+        onNewSession: onNewSession,
+      )
+          : _DesktopLayout(
+        onExportPDF:  onExportPDF,
+        onExportCSV:  onExportCSV,
+        onNewSession: onNewSession,
       ),
     );
   }
 }
-
 class _MobileLayout extends StatelessWidget {
   final VoidCallback onExportPDF;
   final VoidCallback onExportCSV;
@@ -330,6 +330,74 @@ class _MobileLayout extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TabletLayout extends StatelessWidget {
+  final VoidCallback onExportPDF;
+  final VoidCallback onExportCSV;
+  final VoidCallback onNewSession;
+
+  const _TabletLayout({
+    required this.onExportPDF,
+    required this.onExportCSV,
+    required this.onNewSession,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: onExportPDF,
+            icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+            label: const Text('Export PDF'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: Color(0xFFBEC9C3)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: onExportCSV,
+            icon: const Icon(Icons.table_chart_rounded, size: 18),
+            label: const Text('Export CSV'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              side: const BorderSide(color: Color(0xFFBEC9C3)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: onNewSession,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Start New Session'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ),

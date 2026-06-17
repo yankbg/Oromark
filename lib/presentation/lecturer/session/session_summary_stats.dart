@@ -4,6 +4,7 @@
 // Kept separate per the project brief's file structure.
 
 import 'package:flutter/material.dart';
+import 'package:oromark/presentation/lecturer/session/manual_override_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import 'session_controller.dart';
 
@@ -367,11 +368,17 @@ class _AbsentStudentRow extends StatelessWidget {
             ),
           ),
           TextButton.icon(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ManualOverrideScreen(student: student),
+                ),
+              );
+            },
             icon: const Icon(Icons.check_circle_rounded,
                 size: 18, color: AppColors.primary),
             label: const Text(
-              'Mark',
+              'Mark Manually',
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize:   12,
