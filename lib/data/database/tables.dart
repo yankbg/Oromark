@@ -31,5 +31,30 @@ class EnrolledStudents extends Table {
   TextColumn get studentId        => text()();
   TextColumn get courseCode       => text()();
   TextColumn get fullName         => text()();
-  TextColumn get deviceFingerprint => text()();
+  // TextColumn get deviceFingerprint => text()();
+}
+class Students extends Table {
+  IntColumn get id            => integer().autoIncrement()();
+  TextColumn get studentId    => text().unique()(); //eg:23/124/bsc
+  TextColumn get studentName  => text()();
+  TextColumn get studentEmail => text().unique()();
+  TextColumn get phoneNumber  => text()();
+  TextColumn get programme    => text()();  //Computer Science, civil engineering,...
+  TextColumn get yearOfStudy  => text()();
+}
+class Lecturers extends Table {
+  IntColumn get id               => integer().autoIncrement()();
+  TextColumn get lecturerId     => text().unique()();
+  TextColumn get lecturerName    => text()();
+  TextColumn get lecturerEmail   => text()();
+  TextColumn get department      => text()();
+}
+class Courses extends Table {
+  IntColumn get id            => integer().autoIncrement()();
+  TextColumn get courseCode   => text().unique()();
+  TextColumn get courseName    => text()();
+  TextColumn get group        => text().nullable()();
+  IntColumn  get enrolled   => integer().withDefault(const Constant(0))();
+  IntColumn  get avgAttendance => integer().withDefault(const Constant(0))();
+  TextColumn get lecturerId => text().nullable()();
 }
