@@ -322,7 +322,7 @@ class _MobileLayout extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed:     onNewSession,
             icon:          const Icon(Icons.add_rounded, size: 18),
-            label:         const Text('Start New Session'),
+            label:         const Text('End Session'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -389,7 +389,7 @@ class _TabletLayout extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: onNewSession,
             icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Start New Session'),
+            label: const Text('End New Session'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -452,7 +452,7 @@ class _DesktopLayout extends StatelessWidget {
         ElevatedButton.icon(
           onPressed:     onNewSession,
           icon:          const Icon(Icons.add_rounded, size: 18),
-          label:         const Text('Start New Session'),
+          label:         const Text('End Session'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,

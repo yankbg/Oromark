@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oromark/presentation/lecturer/reports/session_attendace_screen.dart';
+import 'package:oromark/presentation/lecturer/reports/session_attendance_controller.dart';
 import 'course_controller.dart';
 import 'package:oromark/core/theme/app_colors.dart';
 import 'package:oromark/data/models/course_model.dart';
@@ -59,7 +61,10 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
                 onStartSession: _startSession,
               ),
               const SizedBox(height: 24),
-              const _RecentSessionsSection(),
+               _RecentSessionsSection(
+                courseCode: widget.course.courseCode,
+                courseName: widget.course.courseName,
+              ),
             ],
           ),
         ),
@@ -246,7 +251,14 @@ class _HeaderCard extends StatelessWidget {
   }
 }
 class _RecentSessionsSection extends StatelessWidget {
-  const _RecentSessionsSection();
+
+  final String courseCode;
+  final String courseName;
+
+  const _RecentSessionsSection({
+    required this.courseCode,
+    required this.courseName,
+});
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +327,11 @@ class _RecentSessionsSection extends StatelessWidget {
           children: sessions
               .map((s) => Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: _RecentSessionCard(item: s),
+            child: _RecentSessionCard(
+                item: s,
+                courseCode: courseCode,
+                courseName: courseName,
+            ),
           ))
               .toList(),
         ),
@@ -342,130 +358,191 @@ class _SessionItem {
   });
 }
 
-class _RecentSessionCard extends StatelessWidget {
+class _RecentSessionCard extends StatefulWidget {
   final _SessionItem item;
-  const _RecentSessionCard({required this.item});
+  final String       courseCode;
+  final String       courseName;
+
+  const _RecentSessionCard({
+    required this.item,
+    required this.courseCode,
+    required this.courseName,
+  });
+
+  @override
+  State<_RecentSessionCard> createState() => _RecentSessionCardState();
+}
+
+class _RecentSessionCardState extends State<_RecentSessionCard> {
+  double _scale = 1.0;
+
+  void _navigate() {
+    // Convert local _SessionItem → PastSessionInfo that the report screen needs
+    final info = PastSessionInfo(
+      month:           widget.item.month,
+      day:             widget.item.day,
+      title:           widget.item.title,
+      time:            widget.item.time,
+      attendance:      widget.item.attendance,
+      attendanceColor: widget.item.attendanceColor,
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SessionAttendanceScreen(
+          session:    info,
+          courseCode: widget.courseCode,
+          courseName: widget.courseName,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.bgPrimary,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x33000000)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+    return GestureDetector(
+      onTapDown:   (_) => setState(() => _scale = 0.975),
+      onTapUp:     (_) {
+        setState(() => _scale = 1.0);
+        _navigate();
+      },
+      onTapCancel: () => setState(() => _scale = 1.0),
+      child: AnimatedScale(
+        scale:    _scale,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color:        AppColors.bgPrimary,
+            borderRadius: BorderRadius.circular(16),
+            border:       Border.all(color: const Color(0xFFE2E8E4)),
+            boxShadow: [
+              BoxShadow(
+                color:     Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset:    const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // date block
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.bgTertiary,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  item.month.toUpperCase(),
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary,
-                  ),
+          child: Row(
+            children: [
+              // Date block
+              Container(
+                width:  48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color:        AppColors.bgTertiary,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                Text(
-                  item.day,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          // title + time
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.schedule_rounded,
-                        size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
                     Text(
-                      item.time,
+                      widget.item.month.toUpperCase(),
                       style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                        fontFamily:  'Inter',
+                        fontSize:    10,
+                        fontWeight:  FontWeight.w700,
+                        color:       AppColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      widget.item.day,
+                      style: const TextStyle(
+                        fontFamily:  'Inter',
+                        fontSize:    16,
+                        fontWeight:  FontWeight.w700,
+                        color:       AppColors.textPrimary,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // attendance percentage and chip
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                item.attendance,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: item.attendanceColor,
+              ),
+              const SizedBox(width: 12),
+
+              // Title + time
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.item.title,
+                      style: const TextStyle(
+                        fontFamily:  'Inter',
+                        fontSize:    14,
+                        fontWeight:  FontWeight.w600,
+                        color:       AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.schedule_rounded,
+                            size: 14, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.item.time,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize:   12,
+                            color:      AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Text(
-                  'COMPLETED',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                    letterSpacing: 0.8,
+              const SizedBox(width: 8),
+
+              // Attendance % + chip + chevron
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        widget.item.attendance,
+                        style: TextStyle(
+                          fontFamily:  'Inter',
+                          fontSize:    14,
+                          fontWeight:  FontWeight.w700,
+                          color:       widget.item.attendanceColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color:        AppColors.primary.withOpacity(0.10),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'COMPLETED',
+                          style: TextStyle(
+                            fontFamily:    'Inter',
+                            fontSize:      10,
+                            fontWeight:    FontWeight.w700,
+                            color:         AppColors.primary,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size:  20,
+                    color: AppColors.textTertiary,
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
