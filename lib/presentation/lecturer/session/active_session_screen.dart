@@ -34,6 +34,13 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
   final _searchCtrl = TextEditingController();
   int _navIndex     = 0;
 
+  // Helper to build the provider params
+  ({String courseCode, String courseName, int enrolled}) get _params => (
+  courseCode: widget.course.courseCode,
+  courseName: widget.course.courseName,
+  enrolled:   widget.course.enrolled,
+  );
+
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -43,7 +50,7 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
   // ── End session ─────────────────────────────────────────────────────────
 
   Future<void> _confirmEndSession() async {
-    final state = ref.read(sessionControllerProvider);
+    final state = ref.watch(sessionControllerProvider(_params));
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -131,7 +138,7 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
       statusBarIconBrightness: Brightness.dark,
     ));
 
-    final state = ref.watch(sessionControllerProvider);
+    final state = ref.watch(sessionControllerProvider(_params));
 
     return Scaffold(
       backgroundColor: AppColors.bgSecondary,
@@ -143,13 +150,13 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
               state:          state,
               searchCtrl:     _searchCtrl,
               onSearch: (q) => ref
-                  .read(sessionControllerProvider.notifier)
+                  .read(sessionControllerProvider(_params).notifier)
                   .updateSearch(q),
               onFilter: (s) => ref
-                  .read(sessionControllerProvider.notifier)
+                  .read(sessionControllerProvider(_params).notifier)
                   .setFilter(s),
               onStartLate: () => ref
-                  .read(sessionControllerProvider.notifier)
+                  .read(sessionControllerProvider(_params).notifier)
                   .startLateWindow(),
               course: widget.course,
               roomOverride: widget.room,
