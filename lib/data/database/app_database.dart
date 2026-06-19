@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:oromark/data/models/auth_result.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'tables.dart';
@@ -179,6 +180,7 @@ class AppDatabase extends _$AppDatabase {
         lecturerName:   'Dr. John Doe',
         lecturerEmail:      'doe@iuea.ac.ug',
         department:       'computer science',
+        password:          '4321'
       ),
     );
   }
@@ -193,13 +195,58 @@ class AppDatabase extends _$AppDatabase {
         studentId:   'U-2023-8841',
         studentName:    'Alex Rivera',
         studentEmail:   'alex.rivera@iuea.ac.ug',
-        phoneNumber:    '+256 790 228 489'
+        phoneNumber:    '+256 790 228 489',
         programme:       'Computer Science',
-        yearOfStudey:    '3rd Year'
+        yearOfStudy:    '3rd Year',
+          password:      '1234'
       ),
     );
   }
+  static EnrolledStudentsCompanion _buildStudent(
+      String studentId,
+      String courseCode,
+      String studentName,
+      ) {
+    return EnrolledStudentsCompanion.insert(
+      studentId: studentId,
+      courseCode: courseCode,
+      studentName: studentName,
+    );
+  }
+  // ── Course helpers ────────────────────────────────────────────────────────
 
+  Future<List<Course>> getAllCourses() => select(courses).get();
+
+  Stream<List<Course>> watchAllCourses() => select(courses).watch();
+
+  Future<Course?> getCourseByCode(String code) {
+    return (select(courses)..where((c) => c.courseCode.equals(code)))
+        .getSingleOrNull();
+  }
+
+  /// Called after a session ends to refresh the cached avgAttendance value.
+  Future<void> updateCourseAttendance(
+      String courseCode,
+      int newAvgAttendance,
+      ) async {
+    await (update(courses)
+      ..where((c) => c.courseCode.equals(courseCode)))
+        .write(CoursesCompanion(
+      avgAttendance: Value(newAvgAttendance),
+    ));
+  }
+  Future<List<EnrolledStudent>> getEnrolledStudents(String courseCode) {
+    return (select(enrolledStudents)
+      ..where((s) => s.courseCode.equals(courseCode)))
+        .get();
+  }
+  // Get enrolled count for a course
+  Future<int> getEnrolledCount(String courseCode) async {
+    final result = await (select(enrolledStudents)
+      ..where((e) => e.courseCode.equals(courseCode)))
+        .get();
+    return result.length;
+  }
 
 
   // Watch attendance for a session (reactive — updates UI live)
@@ -234,13 +281,6 @@ class AppDatabase extends _$AppDatabase {
       };
     });
   }
-  Future<List<EnrolledStudent>> getEnrolledStudents(
-      String courseCode,
-      ) async {
-    return (select(enrolledStudents)
-      ..where((s) => s.courseCode.equals(courseCode)))
-        .get();
-  }
   // Returns all records for a session — used by _computeAbsent
   Future<List<AttendanceRecord>> getSessionAttendance(
       String sessionId,
@@ -249,6 +289,97 @@ class AppDatabase extends _$AppDatabase {
       ..where((r) => r.sessionId.equals(sessionId)))
         .get();
   }
+  /// All records for the logged-in student — drives HistoryController.
+  Future<List<AttendanceRecord>> getStudentHistory(String studentId) {
+    return (select(attendanceRecords)
+      ..where((r) => r.studentId.equals(studentId))
+      ..orderBy([(r) => OrderingTerm.desc(r.timestamp)]))
+        .get();
+  }
+  Future<void> markSynced(List<int> ids) async {
+    await (update(attendanceRecords)
+      ..where((a) => a.id.isIn(ids)))
+        .write(const AttendanceRecordsCompanion(synced: Value(true)));
+  }
+  // ── Sessions helpers ──────────────────────────────────────────────────────
+
+  Future<int> insertSession(SessionsCompanion entry) =>
+      into(sessions).insert(entry);
+
+  Future<Session?> getSessionById(String sessionId) {
+    return (select(sessions)
+      ..where((s) => s.sessionId.equals(sessionId)))
+        .getSingleOrNull();
+  }
+
+  /// All sessions for a course, newest first — drives CourseDetailScreen.
+  Future<List<Session>> getSessionsForCourse(String courseCode) {
+    return (select(sessions)
+      ..where((s) => s.courseCode.equals(courseCode))
+      ..orderBy([(s) => OrderingTerm.desc(s.startTime)]))
+        .get();
+  }
+  Future<AuthResult?> login({
+    String? studentId,
+    String? email,
+    required String password,
+
+}) async{
+    // 1) Try student by studentId + password
+    if (studentId != null && studentId.isNotEmpty) {
+      final studentQuery = select(students)
+        ..where((tbl) => tbl.studentId.equals(studentId))
+        ..where((tbl) => tbl.password.equals(password));
+
+      final student = await studentQuery.getSingleOrNull();
+      if (student != null) {
+        return AuthResult.student(
+          fullname: student.studentName,
+          userId: student.studentId,
+          email: student.studentEmail,
+          program: student.programme,
+          yearOfStudy: student.yearOfStudy
+        );
+      }
+    }
+    // 2) Try student by email + password
+    if (email != null && email.isNotEmpty) {
+      final studentQuery = select(students)
+        ..where((tbl) => tbl.studentEmail.equals(email))
+        ..where((tbl) => tbl.password.equals(password));
+
+      final student = await studentQuery.getSingleOrNull();
+      if (student != null) {
+        return AuthResult.student(
+            fullname: student.studentName,
+            userId: student.studentId,
+            email: student.studentEmail,
+            program: student.programme,
+            yearOfStudy: student.yearOfStudy
+        );
+      }
+    }
+    // 3) Try lecturer by email + password
+    if (email != null && email.isNotEmpty) {
+      final lecturerQuery = select(lecturers)
+        ..where((tbl) => tbl.lecturerEmail.equals(email))
+        ..where((tbl) => tbl.password.equals(password));
+
+      final lecturer = await lecturerQuery.getSingleOrNull();
+      if (lecturer != null) {
+        return AuthResult.lecturer(
+          fullname: lecturer.lecturerName,
+          userId: lecturer.lecturerId,
+          email: lecturer.lecturerEmail,
+          department: lecturer.department
+        );
+      }
+    }
+
+    // 4) No match found
+    return null;
+  }
+
 }
 
 LazyDatabase _openConnection() {

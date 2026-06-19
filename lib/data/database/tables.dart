@@ -41,6 +41,7 @@ class Students extends Table {
   TextColumn get phoneNumber  => text()();
   TextColumn get programme    => text()();  //Computer Science, civil engineering,...
   TextColumn get yearOfStudy  => text()();
+  TextColumn get password     => text()();
 }
 class Lecturers extends Table {
   IntColumn get id               => integer().autoIncrement()();
@@ -48,6 +49,7 @@ class Lecturers extends Table {
   TextColumn get lecturerName    => text()();
   TextColumn get lecturerEmail   => text()();
   TextColumn get department      => text()();
+  TextColumn get password        => text()();
 }
 class Courses extends Table {
   IntColumn get id            => integer().autoIncrement()();
