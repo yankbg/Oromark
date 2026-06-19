@@ -6,20 +6,22 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/presentation/student/home/student_home_screen.dart';
 import 'package:oromark/presentation/student/profile/profile_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import 'history_controller.dart';
 import 'history_item.dart';
+import '../../../providers/app_database_provider.dart';
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   late final HistoryController _ctrl;
 
   @override
@@ -31,7 +33,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         statusBarIconBrightness: Brightness.dark,
       ),
     );
-    _ctrl = HistoryController()..addListener(() => setState(() {}));
+    final db = ref.read(appDatabaseProvider);
+    _ctrl = HistoryController(db)..addListener(() => setState(() {}));
   }
 
   @override

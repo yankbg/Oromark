@@ -3,7 +3,13 @@
 // All state and logic for the attendance history screen.
 // [MOCK] tags mark places a real drift query will replace.
 
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
+import 'package:oromark/data/models/auth_result.dart';
+import 'dart:async';
+import '../../../data/database/app_database.dart';
+import '../../../providers/app_database_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── Status enum ───────────────────────────────────────────────────────────────
 enum AttendanceStatus { present, late, absent }
@@ -42,7 +48,8 @@ extension HistoryFilterLabel on HistoryFilter {
 
 // ── Controller ────────────────────────────────────────────────────────────────
 class HistoryController extends ChangeNotifier {
-  HistoryController() {
+  final AppDatabase _db;
+  HistoryController(this._db) {
     _load(); // [MOCK] — replace with drift query
   }
 
@@ -90,11 +97,59 @@ class HistoryController extends ChangeNotifier {
   }
 
   // ── [MOCK] data load ─────────────────────────────────────────────────────────
+  // Future<void> _load() async {
+  //   await Future.delayed(const Duration(milliseconds: 500));
+  //   _all = _mockRecords;
+  //   isLoading = false;
+  //   notifyListeners();
+  // }
+
   Future<void> _load() async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    _all = _mockRecords;
-    isLoading = false;
-    notifyListeners();
+    try {
+      // Get all ended sessions from drift
+      final sessions = await (_db.select(_db.sessions)
+        ..where((s) => s.status.equals('ENDED'))
+        ..orderBy([(s) => OrderingTerm(expression: s.startTime, mode: OrderingMode.desc)]))
+          .get();
+
+      // For each session, get this student's attendance
+      final records = <HistoryRecord>[];
+      for (final session in sessions) {
+        // TODO: Get current student ID from auth
+        const studentId = 'U-2023-8841'; // Mock for Alex
+
+        // Query attendance for this student in this session
+        final attendance = await (_db.select(_db.attendanceRecords)
+          ..where((a) => a.sessionId.equals(session.sessionId) & a.studentId.equals(studentId)))
+            .getSingleOrNull();
+
+        if (attendance != null) {
+          final status = attendance.status == 'PRESENT'
+              ? AttendanceStatus.present
+              : AttendanceStatus.late;
+          final lateMinutes = attendance.status == 'LATE'
+              ? (attendance.timestamp - session.startTime) ~/ 60000
+              : null;
+
+          records.add(HistoryRecord(
+            id: attendance.id.toString(),
+            courseCode: session.courseCode,
+            courseName: session.courseName,
+            sessionDate: DateTime.fromMillisecondsSinceEpoch(session.startTime),
+            status: status,
+            lateMinutes: lateMinutes,
+          ));
+        }
+      }
+
+      _all = records;
+      isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      print('Error loading attendance history: $e');
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   AttendanceStatus? _filterToStatus(HistoryFilter f) => switch (f) {
@@ -105,78 +160,78 @@ class HistoryController extends ChangeNotifier {
   };
 
   // ── Mock data ────────────────────────────────────────────────────────────────
-  static final _mockRecords = <HistoryRecord>[
-    HistoryRecord(
-      id: '1',
-      courseCode: 'CS301',
-      courseName: 'Software Engineering',
-      sessionDate: DateTime(2026, 10, 24, 10, 0),
-      status: AttendanceStatus.present,
-    ),
-    HistoryRecord(
-      id: '2',
-      courseCode: 'MA202',
-      courseName: 'Discrete Math',
-      sessionDate: DateTime(2026, 10, 23, 14, 15),
-      status: AttendanceStatus.late,
-      lateMinutes: 12,
-    ),
-    HistoryRecord(
-      id: '3',
-      courseCode: 'PY101',
-      courseName: 'Intro to Psychology',
-      sessionDate: DateTime(2026, 10, 22, 9, 0),
-      status: AttendanceStatus.absent,
-    ),
-    HistoryRecord(
-      id: '4',
-      courseCode: 'CS202',
-      courseName: 'Database Systems',
-      sessionDate: DateTime(2026, 10, 21, 11, 30),
-      status: AttendanceStatus.present,
-    ),
-    HistoryRecord(
-      id: '5',
-      courseCode: 'CS405',
-      courseName: 'Cloud Computing',
-      sessionDate: DateTime(2026, 10, 21, 16, 0),
-      status: AttendanceStatus.present,
-    ),
-    HistoryRecord(
-      id: '6',
-      courseCode: 'CS312',
-      courseName: 'Computer Networks',
-      sessionDate: DateTime(2026, 10, 20, 8, 0),
-      status: AttendanceStatus.present,
-    ),
-    HistoryRecord(
-      id: '7',
-      courseCode: 'MA202',
-      courseName: 'Discrete Math',
-      sessionDate: DateTime(2026, 10, 19, 14, 0),
-      status: AttendanceStatus.absent,
-    ),
-    HistoryRecord(
-      id: '8',
-      courseCode: 'CS301',
-      courseName: 'Software Engineering',
-      sessionDate: DateTime(2026, 10, 18, 10, 0),
-      status: AttendanceStatus.late,
-      lateMinutes: 7,
-    ),
-    HistoryRecord(
-      id: '9',
-      courseCode: 'CS405',
-      courseName: 'Cloud Computing',
-      sessionDate: DateTime(2026, 10, 17, 16, 0),
-      status: AttendanceStatus.present,
-    ),
-    HistoryRecord(
-      id: '10',
-      courseCode: 'CS202',
-      courseName: 'Database Systems',
-      sessionDate: DateTime(2026, 10, 16, 11, 30),
-      status: AttendanceStatus.present,
-    ),
-  ];
+  // static final _mockRecords = <HistoryRecord>[
+  //   HistoryRecord(
+  //     id: '1',
+  //     courseCode: 'CS301',
+  //     courseName: 'Software Engineering',
+  //     sessionDate: DateTime(2026, 10, 24, 10, 0),
+  //     status: AttendanceStatus.present,
+  //   ),
+  //   HistoryRecord(
+  //     id: '2',
+  //     courseCode: 'MA202',
+  //     courseName: 'Discrete Math',
+  //     sessionDate: DateTime(2026, 10, 23, 14, 15),
+  //     status: AttendanceStatus.late,
+  //     lateMinutes: 12,
+  //   ),
+  //   HistoryRecord(
+  //     id: '3',
+  //     courseCode: 'PY101',
+  //     courseName: 'Intro to Psychology',
+  //     sessionDate: DateTime(2026, 10, 22, 9, 0),
+  //     status: AttendanceStatus.absent,
+  //   ),
+  //   HistoryRecord(
+  //     id: '4',
+  //     courseCode: 'CS202',
+  //     courseName: 'Database Systems',
+  //     sessionDate: DateTime(2026, 10, 21, 11, 30),
+  //     status: AttendanceStatus.present,
+  //   ),
+  //   HistoryRecord(
+  //     id: '5',
+  //     courseCode: 'CS405',
+  //     courseName: 'Cloud Computing',
+  //     sessionDate: DateTime(2026, 10, 21, 16, 0),
+  //     status: AttendanceStatus.present,
+  //   ),
+  //   HistoryRecord(
+  //     id: '6',
+  //     courseCode: 'CS312',
+  //     courseName: 'Computer Networks',
+  //     sessionDate: DateTime(2026, 10, 20, 8, 0),
+  //     status: AttendanceStatus.present,
+  //   ),
+  //   HistoryRecord(
+  //     id: '7',
+  //     courseCode: 'MA202',
+  //     courseName: 'Discrete Math',
+  //     sessionDate: DateTime(2026, 10, 19, 14, 0),
+  //     status: AttendanceStatus.absent,
+  //   ),
+  //   HistoryRecord(
+  //     id: '8',
+  //     courseCode: 'CS301',
+  //     courseName: 'Software Engineering',
+  //     sessionDate: DateTime(2026, 10, 18, 10, 0),
+  //     status: AttendanceStatus.late,
+  //     lateMinutes: 7,
+  //   ),
+  //   HistoryRecord(
+  //     id: '9',
+  //     courseCode: 'CS405',
+  //     courseName: 'Cloud Computing',
+  //     sessionDate: DateTime(2026, 10, 17, 16, 0),
+  //     status: AttendanceStatus.present,
+  //   ),
+  //   HistoryRecord(
+  //     id: '10',
+  //     courseCode: 'CS202',
+  //     courseName: 'Database Systems',
+  //     sessionDate: DateTime(2026, 10, 16, 11, 30),
+  //     status: AttendanceStatus.present,
+  //   ),
+  // ];
 }
