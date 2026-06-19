@@ -7,6 +7,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/course_model.dart';
+import '../../../data/database/app_database.dart';
+import '../../../providers/app_database_provider.dart';
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -50,45 +52,46 @@ class CourseListState {
 
 // ── Mock data ────────────────────────────────────────────────────────────────
 
-const _kMockCourses = [
-  CourseModel(
-    courseCode:    'CS202',
-    courseName:    'Data Structures',
-    group:         'Group B',
-    enrolled:      45,
-    avgAttendance: 92,
-    lastSessionAt: '4 hours ago',
-  ),
-  CourseModel(
-    courseCode:    'CS405',
-    courseName:    'Network Security',
-    group:         'Final Year',
-    enrolled:      32,
-    avgAttendance: 85,
-    lastSessionAt: null,
-  ),
-  CourseModel(
-    courseCode:    'CS301',
-    courseName:    'Software Engineering',
-    group:         'Group A',
-    enrolled:      60,
-    avgAttendance: 87,
-    lastSessionAt: '2 days ago',
-  ),
-  CourseModel(
-    courseCode:    'CS405',
-    courseName:    'Cloud Computing',
-    group:         'Final Year',
-    enrolled:      32,
-    avgAttendance: 85,
-    lastSessionAt: null,
-  ),
-];
+// const _kMockCourses = [
+//   CourseModel(
+//     courseCode:    'CS202',
+//     courseName:    'Data Structures',
+//     group:         'Group B',
+//     enrolled:      45,
+//     avgAttendance: 92,
+//     lastSessionAt: '4 hours ago',
+//   ),
+//   CourseModel(
+//     courseCode:    'CS405',
+//     courseName:    'Network Security',
+//     group:         'Final Year',
+//     enrolled:      32,
+//     avgAttendance: 85,
+//     lastSessionAt: null,
+//   ),
+//   CourseModel(
+//     courseCode:    'CS301',
+//     courseName:    'Software Engineering',
+//     group:         'Group A',
+//     enrolled:      60,
+//     avgAttendance: 87,
+//     lastSessionAt: '2 days ago',
+//   ),
+//   CourseModel(
+//     courseCode:    'CS405',
+//     courseName:    'Cloud Computing',
+//     group:         'Final Year',
+//     enrolled:      32,
+//     avgAttendance: 85,
+//     lastSessionAt: null,
+//   ),
+// ];
 
 // ── Notifier ─────────────────────────────────────────────────────────────────
 
 class CourseController extends StateNotifier<CourseListState> {
-  CourseController() : super(const CourseListState()) {
+  final AppDatabase _db;
+  CourseController(this._db) : super(const CourseListState()) {
     loadCourses();
   }
 
@@ -97,14 +100,38 @@ class CourseController extends StateNotifier<CourseListState> {
     state = state.copyWith(isLoading: true);
 
     // Simulate network delay — remove when real API is connected
-    await Future.delayed(const Duration(milliseconds: 600));
+    // await Future.delayed(const Duration(milliseconds: 600));
 
     // TODO: replace with repository call, e.g.:
     // final courses = await ref.read(courseRepositoryProvider).fetchForLecturer();
-    state = state.copyWith(
-      courses:   _kMockCourses,
-      isLoading: false,
-    );
+    // state = state.copyWith(
+    //   courses:   _kMockCourses,
+    //   isLoading: false,
+    // );
+    try {
+      // Fetch all courses from drift
+      final courses = await _db.getAllCourses();
+
+      // Convert Course (drift) → CourseModel (domain)
+      final courseModels = courses.map((c) => CourseModel(
+        courseCode:    c.courseCode,
+        courseName:    c.courseName,
+        group:         c.group ?? 'Unknown',
+        enrolled:      c.enrolled,
+        avgAttendance: c.avgAttendance, // TODO: compute from attendance history
+        lastSessionAt: null, // TODO: query from sessions table
+      )).toList();
+
+      state = state.copyWith(
+        courses:   courseModels,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error:     'Failed to load courses: $e',
+      );
+    }
   }
 
   void updateSearch(String query) {
@@ -120,5 +147,5 @@ class CourseController extends StateNotifier<CourseListState> {
 
 final courseControllerProvider =
 StateNotifierProvider<CourseController, CourseListState>(
-      (ref) => CourseController(),
+      (ref) => CourseController(ref.watch(appDatabaseProvider)),
 );

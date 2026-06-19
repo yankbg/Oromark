@@ -68,7 +68,7 @@ class AppDatabase extends _$AppDatabase {
           group:         const Value('Group A'),
           enrolled:      const Value(60),
           avgAttendance: const Value(87),
-          lecturerId:    'IUEA/LEC/001',
+          lecturerId:    const Value('IUEA/LEC/001'),
         ),
         CoursesCompanion.insert(
           courseCode:    'CS202',
@@ -76,7 +76,7 @@ class AppDatabase extends _$AppDatabase {
           group:         const Value('Group B'),
           enrolled:      const Value(45),
           avgAttendance: const Value(92),
-          lecturerId:    'IUEA/LEC/001',
+          lecturerId:    const Value('IUEA/LEC/001'),
         ),
         CoursesCompanion.insert(
           courseCode:    'CS405',
@@ -84,7 +84,7 @@ class AppDatabase extends _$AppDatabase {
           group:         const Value('Final Year'),
           enrolled:      const Value(32),
           avgAttendance: const Value(85),
-          lecturerId:    'IUEA/LEC/001',
+          lecturerId:    const Value('IUEA/LEC/001'),
         ),
         CoursesCompanion.insert(
           courseCode:    'CS312',
@@ -92,7 +92,7 @@ class AppDatabase extends _$AppDatabase {
           group:         const Value('Group C'),
           enrolled:      const Value(38),
           avgAttendance: const Value(79),
-          lecturerId:    'IUEA/LEC/001',
+          lecturerId:    const Value('IUEA/LEC/001'),
         ),
       ]);
     });
@@ -210,7 +210,7 @@ class AppDatabase extends _$AppDatabase {
     return EnrolledStudentsCompanion.insert(
       studentId: studentId,
       courseCode: courseCode,
-      studentName: studentName,
+      fullName: studentName,
     );
   }
   // ── Course helpers ────────────────────────────────────────────────────────

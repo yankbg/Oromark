@@ -1209,26 +1209,8 @@ class $EnrolledStudentsTable extends EnrolledStudents
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _deviceFingerprintMeta = const VerificationMeta(
-    'deviceFingerprint',
-  );
   @override
-  late final GeneratedColumn<String> deviceFingerprint =
-      GeneratedColumn<String>(
-        'device_fingerprint',
-        aliasedName,
-        false,
-        type: DriftSqlType.string,
-        requiredDuringInsert: true,
-      );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    studentId,
-    courseCode,
-    fullName,
-    deviceFingerprint,
-  ];
+  List<GeneratedColumn> get $columns => [id, studentId, courseCode, fullName];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1268,17 +1250,6 @@ class $EnrolledStudentsTable extends EnrolledStudents
     } else if (isInserting) {
       context.missing(_fullNameMeta);
     }
-    if (data.containsKey('device_fingerprint')) {
-      context.handle(
-        _deviceFingerprintMeta,
-        deviceFingerprint.isAcceptableOrUnknown(
-          data['device_fingerprint']!,
-          _deviceFingerprintMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_deviceFingerprintMeta);
-    }
     return context;
   }
 
@@ -1304,10 +1275,6 @@ class $EnrolledStudentsTable extends EnrolledStudents
         DriftSqlType.string,
         data['${effectivePrefix}full_name'],
       )!,
-      deviceFingerprint: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}device_fingerprint'],
-      )!,
     );
   }
 
@@ -1322,13 +1289,11 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
   final String studentId;
   final String courseCode;
   final String fullName;
-  final String deviceFingerprint;
   const EnrolledStudent({
     required this.id,
     required this.studentId,
     required this.courseCode,
     required this.fullName,
-    required this.deviceFingerprint,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1337,7 +1302,6 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
     map['student_id'] = Variable<String>(studentId);
     map['course_code'] = Variable<String>(courseCode);
     map['full_name'] = Variable<String>(fullName);
-    map['device_fingerprint'] = Variable<String>(deviceFingerprint);
     return map;
   }
 
@@ -1347,7 +1311,6 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
       studentId: Value(studentId),
       courseCode: Value(courseCode),
       fullName: Value(fullName),
-      deviceFingerprint: Value(deviceFingerprint),
     );
   }
 
@@ -1361,7 +1324,6 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
       studentId: serializer.fromJson<String>(json['studentId']),
       courseCode: serializer.fromJson<String>(json['courseCode']),
       fullName: serializer.fromJson<String>(json['fullName']),
-      deviceFingerprint: serializer.fromJson<String>(json['deviceFingerprint']),
     );
   }
   @override
@@ -1372,7 +1334,6 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
       'studentId': serializer.toJson<String>(studentId),
       'courseCode': serializer.toJson<String>(courseCode),
       'fullName': serializer.toJson<String>(fullName),
-      'deviceFingerprint': serializer.toJson<String>(deviceFingerprint),
     };
   }
 
@@ -1381,13 +1342,11 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
     String? studentId,
     String? courseCode,
     String? fullName,
-    String? deviceFingerprint,
   }) => EnrolledStudent(
     id: id ?? this.id,
     studentId: studentId ?? this.studentId,
     courseCode: courseCode ?? this.courseCode,
     fullName: fullName ?? this.fullName,
-    deviceFingerprint: deviceFingerprint ?? this.deviceFingerprint,
   );
   EnrolledStudent copyWithCompanion(EnrolledStudentsCompanion data) {
     return EnrolledStudent(
@@ -1397,9 +1356,6 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
           ? data.courseCode.value
           : this.courseCode,
       fullName: data.fullName.present ? data.fullName.value : this.fullName,
-      deviceFingerprint: data.deviceFingerprint.present
-          ? data.deviceFingerprint.value
-          : this.deviceFingerprint,
     );
   }
 
@@ -1409,15 +1365,13 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
           ..write('id: $id, ')
           ..write('studentId: $studentId, ')
           ..write('courseCode: $courseCode, ')
-          ..write('fullName: $fullName, ')
-          ..write('deviceFingerprint: $deviceFingerprint')
+          ..write('fullName: $fullName')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, studentId, courseCode, fullName, deviceFingerprint);
+  int get hashCode => Object.hash(id, studentId, courseCode, fullName);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1425,8 +1379,7 @@ class EnrolledStudent extends DataClass implements Insertable<EnrolledStudent> {
           other.id == this.id &&
           other.studentId == this.studentId &&
           other.courseCode == this.courseCode &&
-          other.fullName == this.fullName &&
-          other.deviceFingerprint == this.deviceFingerprint);
+          other.fullName == this.fullName);
 }
 
 class EnrolledStudentsCompanion extends UpdateCompanion<EnrolledStudent> {
@@ -1434,37 +1387,31 @@ class EnrolledStudentsCompanion extends UpdateCompanion<EnrolledStudent> {
   final Value<String> studentId;
   final Value<String> courseCode;
   final Value<String> fullName;
-  final Value<String> deviceFingerprint;
   const EnrolledStudentsCompanion({
     this.id = const Value.absent(),
     this.studentId = const Value.absent(),
     this.courseCode = const Value.absent(),
     this.fullName = const Value.absent(),
-    this.deviceFingerprint = const Value.absent(),
   });
   EnrolledStudentsCompanion.insert({
     this.id = const Value.absent(),
     required String studentId,
     required String courseCode,
     required String fullName,
-    required String deviceFingerprint,
   }) : studentId = Value(studentId),
        courseCode = Value(courseCode),
-       fullName = Value(fullName),
-       deviceFingerprint = Value(deviceFingerprint);
+       fullName = Value(fullName);
   static Insertable<EnrolledStudent> custom({
     Expression<int>? id,
     Expression<String>? studentId,
     Expression<String>? courseCode,
     Expression<String>? fullName,
-    Expression<String>? deviceFingerprint,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (studentId != null) 'student_id': studentId,
       if (courseCode != null) 'course_code': courseCode,
       if (fullName != null) 'full_name': fullName,
-      if (deviceFingerprint != null) 'device_fingerprint': deviceFingerprint,
     });
   }
 
@@ -1473,14 +1420,12 @@ class EnrolledStudentsCompanion extends UpdateCompanion<EnrolledStudent> {
     Value<String>? studentId,
     Value<String>? courseCode,
     Value<String>? fullName,
-    Value<String>? deviceFingerprint,
   }) {
     return EnrolledStudentsCompanion(
       id: id ?? this.id,
       studentId: studentId ?? this.studentId,
       courseCode: courseCode ?? this.courseCode,
       fullName: fullName ?? this.fullName,
-      deviceFingerprint: deviceFingerprint ?? this.deviceFingerprint,
     );
   }
 
@@ -1499,9 +1444,6 @@ class EnrolledStudentsCompanion extends UpdateCompanion<EnrolledStudent> {
     if (fullName.present) {
       map['full_name'] = Variable<String>(fullName.value);
     }
-    if (deviceFingerprint.present) {
-      map['device_fingerprint'] = Variable<String>(deviceFingerprint.value);
-    }
     return map;
   }
 
@@ -1511,8 +1453,1412 @@ class EnrolledStudentsCompanion extends UpdateCompanion<EnrolledStudent> {
           ..write('id: $id, ')
           ..write('studentId: $studentId, ')
           ..write('courseCode: $courseCode, ')
-          ..write('fullName: $fullName, ')
-          ..write('deviceFingerprint: $deviceFingerprint')
+          ..write('fullName: $fullName')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StudentsTable extends Students with TableInfo<$StudentsTable, Student> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StudentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _studentIdMeta = const VerificationMeta(
+    'studentId',
+  );
+  @override
+  late final GeneratedColumn<String> studentId = GeneratedColumn<String>(
+    'student_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _studentNameMeta = const VerificationMeta(
+    'studentName',
+  );
+  @override
+  late final GeneratedColumn<String> studentName = GeneratedColumn<String>(
+    'student_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _studentEmailMeta = const VerificationMeta(
+    'studentEmail',
+  );
+  @override
+  late final GeneratedColumn<String> studentEmail = GeneratedColumn<String>(
+    'student_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _phoneNumberMeta = const VerificationMeta(
+    'phoneNumber',
+  );
+  @override
+  late final GeneratedColumn<String> phoneNumber = GeneratedColumn<String>(
+    'phone_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _programmeMeta = const VerificationMeta(
+    'programme',
+  );
+  @override
+  late final GeneratedColumn<String> programme = GeneratedColumn<String>(
+    'programme',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _yearOfStudyMeta = const VerificationMeta(
+    'yearOfStudy',
+  );
+  @override
+  late final GeneratedColumn<String> yearOfStudy = GeneratedColumn<String>(
+    'year_of_study',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _passwordMeta = const VerificationMeta(
+    'password',
+  );
+  @override
+  late final GeneratedColumn<String> password = GeneratedColumn<String>(
+    'password',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    studentId,
+    studentName,
+    studentEmail,
+    phoneNumber,
+    programme,
+    yearOfStudy,
+    password,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'students';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Student> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('student_id')) {
+      context.handle(
+        _studentIdMeta,
+        studentId.isAcceptableOrUnknown(data['student_id']!, _studentIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studentIdMeta);
+    }
+    if (data.containsKey('student_name')) {
+      context.handle(
+        _studentNameMeta,
+        studentName.isAcceptableOrUnknown(
+          data['student_name']!,
+          _studentNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_studentNameMeta);
+    }
+    if (data.containsKey('student_email')) {
+      context.handle(
+        _studentEmailMeta,
+        studentEmail.isAcceptableOrUnknown(
+          data['student_email']!,
+          _studentEmailMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_studentEmailMeta);
+    }
+    if (data.containsKey('phone_number')) {
+      context.handle(
+        _phoneNumberMeta,
+        phoneNumber.isAcceptableOrUnknown(
+          data['phone_number']!,
+          _phoneNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_phoneNumberMeta);
+    }
+    if (data.containsKey('programme')) {
+      context.handle(
+        _programmeMeta,
+        programme.isAcceptableOrUnknown(data['programme']!, _programmeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_programmeMeta);
+    }
+    if (data.containsKey('year_of_study')) {
+      context.handle(
+        _yearOfStudyMeta,
+        yearOfStudy.isAcceptableOrUnknown(
+          data['year_of_study']!,
+          _yearOfStudyMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_yearOfStudyMeta);
+    }
+    if (data.containsKey('password')) {
+      context.handle(
+        _passwordMeta,
+        password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_passwordMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Student map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Student(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      studentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}student_id'],
+      )!,
+      studentName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}student_name'],
+      )!,
+      studentEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}student_email'],
+      )!,
+      phoneNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone_number'],
+      )!,
+      programme: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}programme'],
+      )!,
+      yearOfStudy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}year_of_study'],
+      )!,
+      password: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}password'],
+      )!,
+    );
+  }
+
+  @override
+  $StudentsTable createAlias(String alias) {
+    return $StudentsTable(attachedDatabase, alias);
+  }
+}
+
+class Student extends DataClass implements Insertable<Student> {
+  final int id;
+  final String studentId;
+  final String studentName;
+  final String studentEmail;
+  final String phoneNumber;
+  final String programme;
+  final String yearOfStudy;
+  final String password;
+  const Student({
+    required this.id,
+    required this.studentId,
+    required this.studentName,
+    required this.studentEmail,
+    required this.phoneNumber,
+    required this.programme,
+    required this.yearOfStudy,
+    required this.password,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['student_id'] = Variable<String>(studentId);
+    map['student_name'] = Variable<String>(studentName);
+    map['student_email'] = Variable<String>(studentEmail);
+    map['phone_number'] = Variable<String>(phoneNumber);
+    map['programme'] = Variable<String>(programme);
+    map['year_of_study'] = Variable<String>(yearOfStudy);
+    map['password'] = Variable<String>(password);
+    return map;
+  }
+
+  StudentsCompanion toCompanion(bool nullToAbsent) {
+    return StudentsCompanion(
+      id: Value(id),
+      studentId: Value(studentId),
+      studentName: Value(studentName),
+      studentEmail: Value(studentEmail),
+      phoneNumber: Value(phoneNumber),
+      programme: Value(programme),
+      yearOfStudy: Value(yearOfStudy),
+      password: Value(password),
+    );
+  }
+
+  factory Student.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Student(
+      id: serializer.fromJson<int>(json['id']),
+      studentId: serializer.fromJson<String>(json['studentId']),
+      studentName: serializer.fromJson<String>(json['studentName']),
+      studentEmail: serializer.fromJson<String>(json['studentEmail']),
+      phoneNumber: serializer.fromJson<String>(json['phoneNumber']),
+      programme: serializer.fromJson<String>(json['programme']),
+      yearOfStudy: serializer.fromJson<String>(json['yearOfStudy']),
+      password: serializer.fromJson<String>(json['password']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'studentId': serializer.toJson<String>(studentId),
+      'studentName': serializer.toJson<String>(studentName),
+      'studentEmail': serializer.toJson<String>(studentEmail),
+      'phoneNumber': serializer.toJson<String>(phoneNumber),
+      'programme': serializer.toJson<String>(programme),
+      'yearOfStudy': serializer.toJson<String>(yearOfStudy),
+      'password': serializer.toJson<String>(password),
+    };
+  }
+
+  Student copyWith({
+    int? id,
+    String? studentId,
+    String? studentName,
+    String? studentEmail,
+    String? phoneNumber,
+    String? programme,
+    String? yearOfStudy,
+    String? password,
+  }) => Student(
+    id: id ?? this.id,
+    studentId: studentId ?? this.studentId,
+    studentName: studentName ?? this.studentName,
+    studentEmail: studentEmail ?? this.studentEmail,
+    phoneNumber: phoneNumber ?? this.phoneNumber,
+    programme: programme ?? this.programme,
+    yearOfStudy: yearOfStudy ?? this.yearOfStudy,
+    password: password ?? this.password,
+  );
+  Student copyWithCompanion(StudentsCompanion data) {
+    return Student(
+      id: data.id.present ? data.id.value : this.id,
+      studentId: data.studentId.present ? data.studentId.value : this.studentId,
+      studentName: data.studentName.present
+          ? data.studentName.value
+          : this.studentName,
+      studentEmail: data.studentEmail.present
+          ? data.studentEmail.value
+          : this.studentEmail,
+      phoneNumber: data.phoneNumber.present
+          ? data.phoneNumber.value
+          : this.phoneNumber,
+      programme: data.programme.present ? data.programme.value : this.programme,
+      yearOfStudy: data.yearOfStudy.present
+          ? data.yearOfStudy.value
+          : this.yearOfStudy,
+      password: data.password.present ? data.password.value : this.password,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Student(')
+          ..write('id: $id, ')
+          ..write('studentId: $studentId, ')
+          ..write('studentName: $studentName, ')
+          ..write('studentEmail: $studentEmail, ')
+          ..write('phoneNumber: $phoneNumber, ')
+          ..write('programme: $programme, ')
+          ..write('yearOfStudy: $yearOfStudy, ')
+          ..write('password: $password')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    studentId,
+    studentName,
+    studentEmail,
+    phoneNumber,
+    programme,
+    yearOfStudy,
+    password,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Student &&
+          other.id == this.id &&
+          other.studentId == this.studentId &&
+          other.studentName == this.studentName &&
+          other.studentEmail == this.studentEmail &&
+          other.phoneNumber == this.phoneNumber &&
+          other.programme == this.programme &&
+          other.yearOfStudy == this.yearOfStudy &&
+          other.password == this.password);
+}
+
+class StudentsCompanion extends UpdateCompanion<Student> {
+  final Value<int> id;
+  final Value<String> studentId;
+  final Value<String> studentName;
+  final Value<String> studentEmail;
+  final Value<String> phoneNumber;
+  final Value<String> programme;
+  final Value<String> yearOfStudy;
+  final Value<String> password;
+  const StudentsCompanion({
+    this.id = const Value.absent(),
+    this.studentId = const Value.absent(),
+    this.studentName = const Value.absent(),
+    this.studentEmail = const Value.absent(),
+    this.phoneNumber = const Value.absent(),
+    this.programme = const Value.absent(),
+    this.yearOfStudy = const Value.absent(),
+    this.password = const Value.absent(),
+  });
+  StudentsCompanion.insert({
+    this.id = const Value.absent(),
+    required String studentId,
+    required String studentName,
+    required String studentEmail,
+    required String phoneNumber,
+    required String programme,
+    required String yearOfStudy,
+    required String password,
+  }) : studentId = Value(studentId),
+       studentName = Value(studentName),
+       studentEmail = Value(studentEmail),
+       phoneNumber = Value(phoneNumber),
+       programme = Value(programme),
+       yearOfStudy = Value(yearOfStudy),
+       password = Value(password);
+  static Insertable<Student> custom({
+    Expression<int>? id,
+    Expression<String>? studentId,
+    Expression<String>? studentName,
+    Expression<String>? studentEmail,
+    Expression<String>? phoneNumber,
+    Expression<String>? programme,
+    Expression<String>? yearOfStudy,
+    Expression<String>? password,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (studentId != null) 'student_id': studentId,
+      if (studentName != null) 'student_name': studentName,
+      if (studentEmail != null) 'student_email': studentEmail,
+      if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (programme != null) 'programme': programme,
+      if (yearOfStudy != null) 'year_of_study': yearOfStudy,
+      if (password != null) 'password': password,
+    });
+  }
+
+  StudentsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? studentId,
+    Value<String>? studentName,
+    Value<String>? studentEmail,
+    Value<String>? phoneNumber,
+    Value<String>? programme,
+    Value<String>? yearOfStudy,
+    Value<String>? password,
+  }) {
+    return StudentsCompanion(
+      id: id ?? this.id,
+      studentId: studentId ?? this.studentId,
+      studentName: studentName ?? this.studentName,
+      studentEmail: studentEmail ?? this.studentEmail,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      programme: programme ?? this.programme,
+      yearOfStudy: yearOfStudy ?? this.yearOfStudy,
+      password: password ?? this.password,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (studentId.present) {
+      map['student_id'] = Variable<String>(studentId.value);
+    }
+    if (studentName.present) {
+      map['student_name'] = Variable<String>(studentName.value);
+    }
+    if (studentEmail.present) {
+      map['student_email'] = Variable<String>(studentEmail.value);
+    }
+    if (phoneNumber.present) {
+      map['phone_number'] = Variable<String>(phoneNumber.value);
+    }
+    if (programme.present) {
+      map['programme'] = Variable<String>(programme.value);
+    }
+    if (yearOfStudy.present) {
+      map['year_of_study'] = Variable<String>(yearOfStudy.value);
+    }
+    if (password.present) {
+      map['password'] = Variable<String>(password.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StudentsCompanion(')
+          ..write('id: $id, ')
+          ..write('studentId: $studentId, ')
+          ..write('studentName: $studentName, ')
+          ..write('studentEmail: $studentEmail, ')
+          ..write('phoneNumber: $phoneNumber, ')
+          ..write('programme: $programme, ')
+          ..write('yearOfStudy: $yearOfStudy, ')
+          ..write('password: $password')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LecturersTable extends Lecturers
+    with TableInfo<$LecturersTable, Lecturer> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LecturersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _lecturerIdMeta = const VerificationMeta(
+    'lecturerId',
+  );
+  @override
+  late final GeneratedColumn<String> lecturerId = GeneratedColumn<String>(
+    'lecturer_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _lecturerNameMeta = const VerificationMeta(
+    'lecturerName',
+  );
+  @override
+  late final GeneratedColumn<String> lecturerName = GeneratedColumn<String>(
+    'lecturer_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lecturerEmailMeta = const VerificationMeta(
+    'lecturerEmail',
+  );
+  @override
+  late final GeneratedColumn<String> lecturerEmail = GeneratedColumn<String>(
+    'lecturer_email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _departmentMeta = const VerificationMeta(
+    'department',
+  );
+  @override
+  late final GeneratedColumn<String> department = GeneratedColumn<String>(
+    'department',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _passwordMeta = const VerificationMeta(
+    'password',
+  );
+  @override
+  late final GeneratedColumn<String> password = GeneratedColumn<String>(
+    'password',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    lecturerId,
+    lecturerName,
+    lecturerEmail,
+    department,
+    password,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'lecturers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Lecturer> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('lecturer_id')) {
+      context.handle(
+        _lecturerIdMeta,
+        lecturerId.isAcceptableOrUnknown(data['lecturer_id']!, _lecturerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lecturerIdMeta);
+    }
+    if (data.containsKey('lecturer_name')) {
+      context.handle(
+        _lecturerNameMeta,
+        lecturerName.isAcceptableOrUnknown(
+          data['lecturer_name']!,
+          _lecturerNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lecturerNameMeta);
+    }
+    if (data.containsKey('lecturer_email')) {
+      context.handle(
+        _lecturerEmailMeta,
+        lecturerEmail.isAcceptableOrUnknown(
+          data['lecturer_email']!,
+          _lecturerEmailMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lecturerEmailMeta);
+    }
+    if (data.containsKey('department')) {
+      context.handle(
+        _departmentMeta,
+        department.isAcceptableOrUnknown(data['department']!, _departmentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_departmentMeta);
+    }
+    if (data.containsKey('password')) {
+      context.handle(
+        _passwordMeta,
+        password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_passwordMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Lecturer map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Lecturer(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      lecturerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lecturer_id'],
+      )!,
+      lecturerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lecturer_name'],
+      )!,
+      lecturerEmail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lecturer_email'],
+      )!,
+      department: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}department'],
+      )!,
+      password: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}password'],
+      )!,
+    );
+  }
+
+  @override
+  $LecturersTable createAlias(String alias) {
+    return $LecturersTable(attachedDatabase, alias);
+  }
+}
+
+class Lecturer extends DataClass implements Insertable<Lecturer> {
+  final int id;
+  final String lecturerId;
+  final String lecturerName;
+  final String lecturerEmail;
+  final String department;
+  final String password;
+  const Lecturer({
+    required this.id,
+    required this.lecturerId,
+    required this.lecturerName,
+    required this.lecturerEmail,
+    required this.department,
+    required this.password,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['lecturer_id'] = Variable<String>(lecturerId);
+    map['lecturer_name'] = Variable<String>(lecturerName);
+    map['lecturer_email'] = Variable<String>(lecturerEmail);
+    map['department'] = Variable<String>(department);
+    map['password'] = Variable<String>(password);
+    return map;
+  }
+
+  LecturersCompanion toCompanion(bool nullToAbsent) {
+    return LecturersCompanion(
+      id: Value(id),
+      lecturerId: Value(lecturerId),
+      lecturerName: Value(lecturerName),
+      lecturerEmail: Value(lecturerEmail),
+      department: Value(department),
+      password: Value(password),
+    );
+  }
+
+  factory Lecturer.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Lecturer(
+      id: serializer.fromJson<int>(json['id']),
+      lecturerId: serializer.fromJson<String>(json['lecturerId']),
+      lecturerName: serializer.fromJson<String>(json['lecturerName']),
+      lecturerEmail: serializer.fromJson<String>(json['lecturerEmail']),
+      department: serializer.fromJson<String>(json['department']),
+      password: serializer.fromJson<String>(json['password']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'lecturerId': serializer.toJson<String>(lecturerId),
+      'lecturerName': serializer.toJson<String>(lecturerName),
+      'lecturerEmail': serializer.toJson<String>(lecturerEmail),
+      'department': serializer.toJson<String>(department),
+      'password': serializer.toJson<String>(password),
+    };
+  }
+
+  Lecturer copyWith({
+    int? id,
+    String? lecturerId,
+    String? lecturerName,
+    String? lecturerEmail,
+    String? department,
+    String? password,
+  }) => Lecturer(
+    id: id ?? this.id,
+    lecturerId: lecturerId ?? this.lecturerId,
+    lecturerName: lecturerName ?? this.lecturerName,
+    lecturerEmail: lecturerEmail ?? this.lecturerEmail,
+    department: department ?? this.department,
+    password: password ?? this.password,
+  );
+  Lecturer copyWithCompanion(LecturersCompanion data) {
+    return Lecturer(
+      id: data.id.present ? data.id.value : this.id,
+      lecturerId: data.lecturerId.present
+          ? data.lecturerId.value
+          : this.lecturerId,
+      lecturerName: data.lecturerName.present
+          ? data.lecturerName.value
+          : this.lecturerName,
+      lecturerEmail: data.lecturerEmail.present
+          ? data.lecturerEmail.value
+          : this.lecturerEmail,
+      department: data.department.present
+          ? data.department.value
+          : this.department,
+      password: data.password.present ? data.password.value : this.password,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Lecturer(')
+          ..write('id: $id, ')
+          ..write('lecturerId: $lecturerId, ')
+          ..write('lecturerName: $lecturerName, ')
+          ..write('lecturerEmail: $lecturerEmail, ')
+          ..write('department: $department, ')
+          ..write('password: $password')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    lecturerId,
+    lecturerName,
+    lecturerEmail,
+    department,
+    password,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Lecturer &&
+          other.id == this.id &&
+          other.lecturerId == this.lecturerId &&
+          other.lecturerName == this.lecturerName &&
+          other.lecturerEmail == this.lecturerEmail &&
+          other.department == this.department &&
+          other.password == this.password);
+}
+
+class LecturersCompanion extends UpdateCompanion<Lecturer> {
+  final Value<int> id;
+  final Value<String> lecturerId;
+  final Value<String> lecturerName;
+  final Value<String> lecturerEmail;
+  final Value<String> department;
+  final Value<String> password;
+  const LecturersCompanion({
+    this.id = const Value.absent(),
+    this.lecturerId = const Value.absent(),
+    this.lecturerName = const Value.absent(),
+    this.lecturerEmail = const Value.absent(),
+    this.department = const Value.absent(),
+    this.password = const Value.absent(),
+  });
+  LecturersCompanion.insert({
+    this.id = const Value.absent(),
+    required String lecturerId,
+    required String lecturerName,
+    required String lecturerEmail,
+    required String department,
+    required String password,
+  }) : lecturerId = Value(lecturerId),
+       lecturerName = Value(lecturerName),
+       lecturerEmail = Value(lecturerEmail),
+       department = Value(department),
+       password = Value(password);
+  static Insertable<Lecturer> custom({
+    Expression<int>? id,
+    Expression<String>? lecturerId,
+    Expression<String>? lecturerName,
+    Expression<String>? lecturerEmail,
+    Expression<String>? department,
+    Expression<String>? password,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (lecturerId != null) 'lecturer_id': lecturerId,
+      if (lecturerName != null) 'lecturer_name': lecturerName,
+      if (lecturerEmail != null) 'lecturer_email': lecturerEmail,
+      if (department != null) 'department': department,
+      if (password != null) 'password': password,
+    });
+  }
+
+  LecturersCompanion copyWith({
+    Value<int>? id,
+    Value<String>? lecturerId,
+    Value<String>? lecturerName,
+    Value<String>? lecturerEmail,
+    Value<String>? department,
+    Value<String>? password,
+  }) {
+    return LecturersCompanion(
+      id: id ?? this.id,
+      lecturerId: lecturerId ?? this.lecturerId,
+      lecturerName: lecturerName ?? this.lecturerName,
+      lecturerEmail: lecturerEmail ?? this.lecturerEmail,
+      department: department ?? this.department,
+      password: password ?? this.password,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (lecturerId.present) {
+      map['lecturer_id'] = Variable<String>(lecturerId.value);
+    }
+    if (lecturerName.present) {
+      map['lecturer_name'] = Variable<String>(lecturerName.value);
+    }
+    if (lecturerEmail.present) {
+      map['lecturer_email'] = Variable<String>(lecturerEmail.value);
+    }
+    if (department.present) {
+      map['department'] = Variable<String>(department.value);
+    }
+    if (password.present) {
+      map['password'] = Variable<String>(password.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LecturersCompanion(')
+          ..write('id: $id, ')
+          ..write('lecturerId: $lecturerId, ')
+          ..write('lecturerName: $lecturerName, ')
+          ..write('lecturerEmail: $lecturerEmail, ')
+          ..write('department: $department, ')
+          ..write('password: $password')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CoursesTable extends Courses with TableInfo<$CoursesTable, Course> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CoursesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _courseCodeMeta = const VerificationMeta(
+    'courseCode',
+  );
+  @override
+  late final GeneratedColumn<String> courseCode = GeneratedColumn<String>(
+    'course_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _courseNameMeta = const VerificationMeta(
+    'courseName',
+  );
+  @override
+  late final GeneratedColumn<String> courseName = GeneratedColumn<String>(
+    'course_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _groupMeta = const VerificationMeta('group');
+  @override
+  late final GeneratedColumn<String> group = GeneratedColumn<String>(
+    'group',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _enrolledMeta = const VerificationMeta(
+    'enrolled',
+  );
+  @override
+  late final GeneratedColumn<int> enrolled = GeneratedColumn<int>(
+    'enrolled',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _avgAttendanceMeta = const VerificationMeta(
+    'avgAttendance',
+  );
+  @override
+  late final GeneratedColumn<int> avgAttendance = GeneratedColumn<int>(
+    'avg_attendance',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lecturerIdMeta = const VerificationMeta(
+    'lecturerId',
+  );
+  @override
+  late final GeneratedColumn<String> lecturerId = GeneratedColumn<String>(
+    'lecturer_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    courseCode,
+    courseName,
+    group,
+    enrolled,
+    avgAttendance,
+    lecturerId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'courses';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Course> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('course_code')) {
+      context.handle(
+        _courseCodeMeta,
+        courseCode.isAcceptableOrUnknown(data['course_code']!, _courseCodeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_courseCodeMeta);
+    }
+    if (data.containsKey('course_name')) {
+      context.handle(
+        _courseNameMeta,
+        courseName.isAcceptableOrUnknown(data['course_name']!, _courseNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_courseNameMeta);
+    }
+    if (data.containsKey('group')) {
+      context.handle(
+        _groupMeta,
+        group.isAcceptableOrUnknown(data['group']!, _groupMeta),
+      );
+    }
+    if (data.containsKey('enrolled')) {
+      context.handle(
+        _enrolledMeta,
+        enrolled.isAcceptableOrUnknown(data['enrolled']!, _enrolledMeta),
+      );
+    }
+    if (data.containsKey('avg_attendance')) {
+      context.handle(
+        _avgAttendanceMeta,
+        avgAttendance.isAcceptableOrUnknown(
+          data['avg_attendance']!,
+          _avgAttendanceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('lecturer_id')) {
+      context.handle(
+        _lecturerIdMeta,
+        lecturerId.isAcceptableOrUnknown(data['lecturer_id']!, _lecturerIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Course map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Course(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      courseCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}course_code'],
+      )!,
+      courseName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}course_name'],
+      )!,
+      group: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group'],
+      ),
+      enrolled: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}enrolled'],
+      )!,
+      avgAttendance: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}avg_attendance'],
+      )!,
+      lecturerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lecturer_id'],
+      ),
+    );
+  }
+
+  @override
+  $CoursesTable createAlias(String alias) {
+    return $CoursesTable(attachedDatabase, alias);
+  }
+}
+
+class Course extends DataClass implements Insertable<Course> {
+  final int id;
+  final String courseCode;
+  final String courseName;
+  final String? group;
+  final int enrolled;
+  final int avgAttendance;
+  final String? lecturerId;
+  const Course({
+    required this.id,
+    required this.courseCode,
+    required this.courseName,
+    this.group,
+    required this.enrolled,
+    required this.avgAttendance,
+    this.lecturerId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['course_code'] = Variable<String>(courseCode);
+    map['course_name'] = Variable<String>(courseName);
+    if (!nullToAbsent || group != null) {
+      map['group'] = Variable<String>(group);
+    }
+    map['enrolled'] = Variable<int>(enrolled);
+    map['avg_attendance'] = Variable<int>(avgAttendance);
+    if (!nullToAbsent || lecturerId != null) {
+      map['lecturer_id'] = Variable<String>(lecturerId);
+    }
+    return map;
+  }
+
+  CoursesCompanion toCompanion(bool nullToAbsent) {
+    return CoursesCompanion(
+      id: Value(id),
+      courseCode: Value(courseCode),
+      courseName: Value(courseName),
+      group: group == null && nullToAbsent
+          ? const Value.absent()
+          : Value(group),
+      enrolled: Value(enrolled),
+      avgAttendance: Value(avgAttendance),
+      lecturerId: lecturerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lecturerId),
+    );
+  }
+
+  factory Course.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Course(
+      id: serializer.fromJson<int>(json['id']),
+      courseCode: serializer.fromJson<String>(json['courseCode']),
+      courseName: serializer.fromJson<String>(json['courseName']),
+      group: serializer.fromJson<String?>(json['group']),
+      enrolled: serializer.fromJson<int>(json['enrolled']),
+      avgAttendance: serializer.fromJson<int>(json['avgAttendance']),
+      lecturerId: serializer.fromJson<String?>(json['lecturerId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'courseCode': serializer.toJson<String>(courseCode),
+      'courseName': serializer.toJson<String>(courseName),
+      'group': serializer.toJson<String?>(group),
+      'enrolled': serializer.toJson<int>(enrolled),
+      'avgAttendance': serializer.toJson<int>(avgAttendance),
+      'lecturerId': serializer.toJson<String?>(lecturerId),
+    };
+  }
+
+  Course copyWith({
+    int? id,
+    String? courseCode,
+    String? courseName,
+    Value<String?> group = const Value.absent(),
+    int? enrolled,
+    int? avgAttendance,
+    Value<String?> lecturerId = const Value.absent(),
+  }) => Course(
+    id: id ?? this.id,
+    courseCode: courseCode ?? this.courseCode,
+    courseName: courseName ?? this.courseName,
+    group: group.present ? group.value : this.group,
+    enrolled: enrolled ?? this.enrolled,
+    avgAttendance: avgAttendance ?? this.avgAttendance,
+    lecturerId: lecturerId.present ? lecturerId.value : this.lecturerId,
+  );
+  Course copyWithCompanion(CoursesCompanion data) {
+    return Course(
+      id: data.id.present ? data.id.value : this.id,
+      courseCode: data.courseCode.present
+          ? data.courseCode.value
+          : this.courseCode,
+      courseName: data.courseName.present
+          ? data.courseName.value
+          : this.courseName,
+      group: data.group.present ? data.group.value : this.group,
+      enrolled: data.enrolled.present ? data.enrolled.value : this.enrolled,
+      avgAttendance: data.avgAttendance.present
+          ? data.avgAttendance.value
+          : this.avgAttendance,
+      lecturerId: data.lecturerId.present
+          ? data.lecturerId.value
+          : this.lecturerId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Course(')
+          ..write('id: $id, ')
+          ..write('courseCode: $courseCode, ')
+          ..write('courseName: $courseName, ')
+          ..write('group: $group, ')
+          ..write('enrolled: $enrolled, ')
+          ..write('avgAttendance: $avgAttendance, ')
+          ..write('lecturerId: $lecturerId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    courseCode,
+    courseName,
+    group,
+    enrolled,
+    avgAttendance,
+    lecturerId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Course &&
+          other.id == this.id &&
+          other.courseCode == this.courseCode &&
+          other.courseName == this.courseName &&
+          other.group == this.group &&
+          other.enrolled == this.enrolled &&
+          other.avgAttendance == this.avgAttendance &&
+          other.lecturerId == this.lecturerId);
+}
+
+class CoursesCompanion extends UpdateCompanion<Course> {
+  final Value<int> id;
+  final Value<String> courseCode;
+  final Value<String> courseName;
+  final Value<String?> group;
+  final Value<int> enrolled;
+  final Value<int> avgAttendance;
+  final Value<String?> lecturerId;
+  const CoursesCompanion({
+    this.id = const Value.absent(),
+    this.courseCode = const Value.absent(),
+    this.courseName = const Value.absent(),
+    this.group = const Value.absent(),
+    this.enrolled = const Value.absent(),
+    this.avgAttendance = const Value.absent(),
+    this.lecturerId = const Value.absent(),
+  });
+  CoursesCompanion.insert({
+    this.id = const Value.absent(),
+    required String courseCode,
+    required String courseName,
+    this.group = const Value.absent(),
+    this.enrolled = const Value.absent(),
+    this.avgAttendance = const Value.absent(),
+    this.lecturerId = const Value.absent(),
+  }) : courseCode = Value(courseCode),
+       courseName = Value(courseName);
+  static Insertable<Course> custom({
+    Expression<int>? id,
+    Expression<String>? courseCode,
+    Expression<String>? courseName,
+    Expression<String>? group,
+    Expression<int>? enrolled,
+    Expression<int>? avgAttendance,
+    Expression<String>? lecturerId,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (courseCode != null) 'course_code': courseCode,
+      if (courseName != null) 'course_name': courseName,
+      if (group != null) 'group': group,
+      if (enrolled != null) 'enrolled': enrolled,
+      if (avgAttendance != null) 'avg_attendance': avgAttendance,
+      if (lecturerId != null) 'lecturer_id': lecturerId,
+    });
+  }
+
+  CoursesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? courseCode,
+    Value<String>? courseName,
+    Value<String?>? group,
+    Value<int>? enrolled,
+    Value<int>? avgAttendance,
+    Value<String?>? lecturerId,
+  }) {
+    return CoursesCompanion(
+      id: id ?? this.id,
+      courseCode: courseCode ?? this.courseCode,
+      courseName: courseName ?? this.courseName,
+      group: group ?? this.group,
+      enrolled: enrolled ?? this.enrolled,
+      avgAttendance: avgAttendance ?? this.avgAttendance,
+      lecturerId: lecturerId ?? this.lecturerId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (courseCode.present) {
+      map['course_code'] = Variable<String>(courseCode.value);
+    }
+    if (courseName.present) {
+      map['course_name'] = Variable<String>(courseName.value);
+    }
+    if (group.present) {
+      map['group'] = Variable<String>(group.value);
+    }
+    if (enrolled.present) {
+      map['enrolled'] = Variable<int>(enrolled.value);
+    }
+    if (avgAttendance.present) {
+      map['avg_attendance'] = Variable<int>(avgAttendance.value);
+    }
+    if (lecturerId.present) {
+      map['lecturer_id'] = Variable<String>(lecturerId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CoursesCompanion(')
+          ..write('id: $id, ')
+          ..write('courseCode: $courseCode, ')
+          ..write('courseName: $courseName, ')
+          ..write('group: $group, ')
+          ..write('enrolled: $enrolled, ')
+          ..write('avgAttendance: $avgAttendance, ')
+          ..write('lecturerId: $lecturerId')
           ..write(')'))
         .toString();
   }
@@ -1527,6 +2873,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $EnrolledStudentsTable enrolledStudents = $EnrolledStudentsTable(
     this,
   );
+  late final $StudentsTable students = $StudentsTable(this);
+  late final $LecturersTable lecturers = $LecturersTable(this);
+  late final $CoursesTable courses = $CoursesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1535,6 +2884,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     sessions,
     attendanceRecords,
     enrolledStudents,
+    students,
+    lecturers,
+    courses,
   ];
 }
 
@@ -2120,7 +3472,6 @@ typedef $$EnrolledStudentsTableCreateCompanionBuilder =
       required String studentId,
       required String courseCode,
       required String fullName,
-      required String deviceFingerprint,
     });
 typedef $$EnrolledStudentsTableUpdateCompanionBuilder =
     EnrolledStudentsCompanion Function({
@@ -2128,7 +3479,6 @@ typedef $$EnrolledStudentsTableUpdateCompanionBuilder =
       Value<String> studentId,
       Value<String> courseCode,
       Value<String> fullName,
-      Value<String> deviceFingerprint,
     });
 
 class $$EnrolledStudentsTableFilterComposer
@@ -2157,11 +3507,6 @@ class $$EnrolledStudentsTableFilterComposer
 
   ColumnFilters<String> get fullName => $composableBuilder(
     column: $table.fullName,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get deviceFingerprint => $composableBuilder(
-    column: $table.deviceFingerprint,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2194,11 +3539,6 @@ class $$EnrolledStudentsTableOrderingComposer
     column: $table.fullName,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<String> get deviceFingerprint => $composableBuilder(
-    column: $table.deviceFingerprint,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$EnrolledStudentsTableAnnotationComposer
@@ -2223,11 +3563,6 @@ class $$EnrolledStudentsTableAnnotationComposer
 
   GeneratedColumn<String> get fullName =>
       $composableBuilder(column: $table.fullName, builder: (column) => column);
-
-  GeneratedColumn<String> get deviceFingerprint => $composableBuilder(
-    column: $table.deviceFingerprint,
-    builder: (column) => column,
-  );
 }
 
 class $$EnrolledStudentsTableTableManager
@@ -2271,13 +3606,11 @@ class $$EnrolledStudentsTableTableManager
                 Value<String> studentId = const Value.absent(),
                 Value<String> courseCode = const Value.absent(),
                 Value<String> fullName = const Value.absent(),
-                Value<String> deviceFingerprint = const Value.absent(),
               }) => EnrolledStudentsCompanion(
                 id: id,
                 studentId: studentId,
                 courseCode: courseCode,
                 fullName: fullName,
-                deviceFingerprint: deviceFingerprint,
               ),
           createCompanionCallback:
               ({
@@ -2285,13 +3618,11 @@ class $$EnrolledStudentsTableTableManager
                 required String studentId,
                 required String courseCode,
                 required String fullName,
-                required String deviceFingerprint,
               }) => EnrolledStudentsCompanion.insert(
                 id: id,
                 studentId: studentId,
                 courseCode: courseCode,
                 fullName: fullName,
-                deviceFingerprint: deviceFingerprint,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -2318,6 +3649,708 @@ typedef $$EnrolledStudentsTableProcessedTableManager =
       EnrolledStudent,
       PrefetchHooks Function()
     >;
+typedef $$StudentsTableCreateCompanionBuilder =
+    StudentsCompanion Function({
+      Value<int> id,
+      required String studentId,
+      required String studentName,
+      required String studentEmail,
+      required String phoneNumber,
+      required String programme,
+      required String yearOfStudy,
+      required String password,
+    });
+typedef $$StudentsTableUpdateCompanionBuilder =
+    StudentsCompanion Function({
+      Value<int> id,
+      Value<String> studentId,
+      Value<String> studentName,
+      Value<String> studentEmail,
+      Value<String> phoneNumber,
+      Value<String> programme,
+      Value<String> yearOfStudy,
+      Value<String> password,
+    });
+
+class $$StudentsTableFilterComposer
+    extends Composer<_$AppDatabase, $StudentsTable> {
+  $$StudentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get studentId => $composableBuilder(
+    column: $table.studentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get studentName => $composableBuilder(
+    column: $table.studentName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get studentEmail => $composableBuilder(
+    column: $table.studentEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get programme => $composableBuilder(
+    column: $table.programme,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get yearOfStudy => $composableBuilder(
+    column: $table.yearOfStudy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$StudentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $StudentsTable> {
+  $$StudentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get studentId => $composableBuilder(
+    column: $table.studentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get studentName => $composableBuilder(
+    column: $table.studentName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get studentEmail => $composableBuilder(
+    column: $table.studentEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get programme => $composableBuilder(
+    column: $table.programme,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get yearOfStudy => $composableBuilder(
+    column: $table.yearOfStudy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$StudentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StudentsTable> {
+  $$StudentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get studentId =>
+      $composableBuilder(column: $table.studentId, builder: (column) => column);
+
+  GeneratedColumn<String> get studentName => $composableBuilder(
+    column: $table.studentName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get studentEmail => $composableBuilder(
+    column: $table.studentEmail,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get programme =>
+      $composableBuilder(column: $table.programme, builder: (column) => column);
+
+  GeneratedColumn<String> get yearOfStudy => $composableBuilder(
+    column: $table.yearOfStudy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get password =>
+      $composableBuilder(column: $table.password, builder: (column) => column);
+}
+
+class $$StudentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StudentsTable,
+          Student,
+          $$StudentsTableFilterComposer,
+          $$StudentsTableOrderingComposer,
+          $$StudentsTableAnnotationComposer,
+          $$StudentsTableCreateCompanionBuilder,
+          $$StudentsTableUpdateCompanionBuilder,
+          (Student, BaseReferences<_$AppDatabase, $StudentsTable, Student>),
+          Student,
+          PrefetchHooks Function()
+        > {
+  $$StudentsTableTableManager(_$AppDatabase db, $StudentsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StudentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StudentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StudentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> studentId = const Value.absent(),
+                Value<String> studentName = const Value.absent(),
+                Value<String> studentEmail = const Value.absent(),
+                Value<String> phoneNumber = const Value.absent(),
+                Value<String> programme = const Value.absent(),
+                Value<String> yearOfStudy = const Value.absent(),
+                Value<String> password = const Value.absent(),
+              }) => StudentsCompanion(
+                id: id,
+                studentId: studentId,
+                studentName: studentName,
+                studentEmail: studentEmail,
+                phoneNumber: phoneNumber,
+                programme: programme,
+                yearOfStudy: yearOfStudy,
+                password: password,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String studentId,
+                required String studentName,
+                required String studentEmail,
+                required String phoneNumber,
+                required String programme,
+                required String yearOfStudy,
+                required String password,
+              }) => StudentsCompanion.insert(
+                id: id,
+                studentId: studentId,
+                studentName: studentName,
+                studentEmail: studentEmail,
+                phoneNumber: phoneNumber,
+                programme: programme,
+                yearOfStudy: yearOfStudy,
+                password: password,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$StudentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StudentsTable,
+      Student,
+      $$StudentsTableFilterComposer,
+      $$StudentsTableOrderingComposer,
+      $$StudentsTableAnnotationComposer,
+      $$StudentsTableCreateCompanionBuilder,
+      $$StudentsTableUpdateCompanionBuilder,
+      (Student, BaseReferences<_$AppDatabase, $StudentsTable, Student>),
+      Student,
+      PrefetchHooks Function()
+    >;
+typedef $$LecturersTableCreateCompanionBuilder =
+    LecturersCompanion Function({
+      Value<int> id,
+      required String lecturerId,
+      required String lecturerName,
+      required String lecturerEmail,
+      required String department,
+      required String password,
+    });
+typedef $$LecturersTableUpdateCompanionBuilder =
+    LecturersCompanion Function({
+      Value<int> id,
+      Value<String> lecturerId,
+      Value<String> lecturerName,
+      Value<String> lecturerEmail,
+      Value<String> department,
+      Value<String> password,
+    });
+
+class $$LecturersTableFilterComposer
+    extends Composer<_$AppDatabase, $LecturersTable> {
+  $$LecturersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lecturerId => $composableBuilder(
+    column: $table.lecturerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lecturerName => $composableBuilder(
+    column: $table.lecturerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lecturerEmail => $composableBuilder(
+    column: $table.lecturerEmail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get department => $composableBuilder(
+    column: $table.department,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LecturersTableOrderingComposer
+    extends Composer<_$AppDatabase, $LecturersTable> {
+  $$LecturersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lecturerId => $composableBuilder(
+    column: $table.lecturerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lecturerName => $composableBuilder(
+    column: $table.lecturerName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lecturerEmail => $composableBuilder(
+    column: $table.lecturerEmail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get department => $composableBuilder(
+    column: $table.department,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LecturersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LecturersTable> {
+  $$LecturersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get lecturerId => $composableBuilder(
+    column: $table.lecturerId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lecturerName => $composableBuilder(
+    column: $table.lecturerName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lecturerEmail => $composableBuilder(
+    column: $table.lecturerEmail,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get department => $composableBuilder(
+    column: $table.department,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get password =>
+      $composableBuilder(column: $table.password, builder: (column) => column);
+}
+
+class $$LecturersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LecturersTable,
+          Lecturer,
+          $$LecturersTableFilterComposer,
+          $$LecturersTableOrderingComposer,
+          $$LecturersTableAnnotationComposer,
+          $$LecturersTableCreateCompanionBuilder,
+          $$LecturersTableUpdateCompanionBuilder,
+          (Lecturer, BaseReferences<_$AppDatabase, $LecturersTable, Lecturer>),
+          Lecturer,
+          PrefetchHooks Function()
+        > {
+  $$LecturersTableTableManager(_$AppDatabase db, $LecturersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LecturersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LecturersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LecturersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> lecturerId = const Value.absent(),
+                Value<String> lecturerName = const Value.absent(),
+                Value<String> lecturerEmail = const Value.absent(),
+                Value<String> department = const Value.absent(),
+                Value<String> password = const Value.absent(),
+              }) => LecturersCompanion(
+                id: id,
+                lecturerId: lecturerId,
+                lecturerName: lecturerName,
+                lecturerEmail: lecturerEmail,
+                department: department,
+                password: password,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String lecturerId,
+                required String lecturerName,
+                required String lecturerEmail,
+                required String department,
+                required String password,
+              }) => LecturersCompanion.insert(
+                id: id,
+                lecturerId: lecturerId,
+                lecturerName: lecturerName,
+                lecturerEmail: lecturerEmail,
+                department: department,
+                password: password,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LecturersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LecturersTable,
+      Lecturer,
+      $$LecturersTableFilterComposer,
+      $$LecturersTableOrderingComposer,
+      $$LecturersTableAnnotationComposer,
+      $$LecturersTableCreateCompanionBuilder,
+      $$LecturersTableUpdateCompanionBuilder,
+      (Lecturer, BaseReferences<_$AppDatabase, $LecturersTable, Lecturer>),
+      Lecturer,
+      PrefetchHooks Function()
+    >;
+typedef $$CoursesTableCreateCompanionBuilder =
+    CoursesCompanion Function({
+      Value<int> id,
+      required String courseCode,
+      required String courseName,
+      Value<String?> group,
+      Value<int> enrolled,
+      Value<int> avgAttendance,
+      Value<String?> lecturerId,
+    });
+typedef $$CoursesTableUpdateCompanionBuilder =
+    CoursesCompanion Function({
+      Value<int> id,
+      Value<String> courseCode,
+      Value<String> courseName,
+      Value<String?> group,
+      Value<int> enrolled,
+      Value<int> avgAttendance,
+      Value<String?> lecturerId,
+    });
+
+class $$CoursesTableFilterComposer
+    extends Composer<_$AppDatabase, $CoursesTable> {
+  $$CoursesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get courseCode => $composableBuilder(
+    column: $table.courseCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get courseName => $composableBuilder(
+    column: $table.courseName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get group => $composableBuilder(
+    column: $table.group,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get enrolled => $composableBuilder(
+    column: $table.enrolled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get avgAttendance => $composableBuilder(
+    column: $table.avgAttendance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lecturerId => $composableBuilder(
+    column: $table.lecturerId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CoursesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CoursesTable> {
+  $$CoursesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get courseCode => $composableBuilder(
+    column: $table.courseCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get courseName => $composableBuilder(
+    column: $table.courseName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get group => $composableBuilder(
+    column: $table.group,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get enrolled => $composableBuilder(
+    column: $table.enrolled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get avgAttendance => $composableBuilder(
+    column: $table.avgAttendance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lecturerId => $composableBuilder(
+    column: $table.lecturerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CoursesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CoursesTable> {
+  $$CoursesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get courseCode => $composableBuilder(
+    column: $table.courseCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get courseName => $composableBuilder(
+    column: $table.courseName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get group =>
+      $composableBuilder(column: $table.group, builder: (column) => column);
+
+  GeneratedColumn<int> get enrolled =>
+      $composableBuilder(column: $table.enrolled, builder: (column) => column);
+
+  GeneratedColumn<int> get avgAttendance => $composableBuilder(
+    column: $table.avgAttendance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lecturerId => $composableBuilder(
+    column: $table.lecturerId,
+    builder: (column) => column,
+  );
+}
+
+class $$CoursesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CoursesTable,
+          Course,
+          $$CoursesTableFilterComposer,
+          $$CoursesTableOrderingComposer,
+          $$CoursesTableAnnotationComposer,
+          $$CoursesTableCreateCompanionBuilder,
+          $$CoursesTableUpdateCompanionBuilder,
+          (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+          Course,
+          PrefetchHooks Function()
+        > {
+  $$CoursesTableTableManager(_$AppDatabase db, $CoursesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CoursesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CoursesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CoursesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> courseCode = const Value.absent(),
+                Value<String> courseName = const Value.absent(),
+                Value<String?> group = const Value.absent(),
+                Value<int> enrolled = const Value.absent(),
+                Value<int> avgAttendance = const Value.absent(),
+                Value<String?> lecturerId = const Value.absent(),
+              }) => CoursesCompanion(
+                id: id,
+                courseCode: courseCode,
+                courseName: courseName,
+                group: group,
+                enrolled: enrolled,
+                avgAttendance: avgAttendance,
+                lecturerId: lecturerId,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String courseCode,
+                required String courseName,
+                Value<String?> group = const Value.absent(),
+                Value<int> enrolled = const Value.absent(),
+                Value<int> avgAttendance = const Value.absent(),
+                Value<String?> lecturerId = const Value.absent(),
+              }) => CoursesCompanion.insert(
+                id: id,
+                courseCode: courseCode,
+                courseName: courseName,
+                group: group,
+                enrolled: enrolled,
+                avgAttendance: avgAttendance,
+                lecturerId: lecturerId,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CoursesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CoursesTable,
+      Course,
+      $$CoursesTableFilterComposer,
+      $$CoursesTableOrderingComposer,
+      $$CoursesTableAnnotationComposer,
+      $$CoursesTableCreateCompanionBuilder,
+      $$CoursesTableUpdateCompanionBuilder,
+      (Course, BaseReferences<_$AppDatabase, $CoursesTable, Course>),
+      Course,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2328,4 +4361,10 @@ class $AppDatabaseManager {
       $$AttendanceRecordsTableTableManager(_db, _db.attendanceRecords);
   $$EnrolledStudentsTableTableManager get enrolledStudents =>
       $$EnrolledStudentsTableTableManager(_db, _db.enrolledStudents);
+  $$StudentsTableTableManager get students =>
+      $$StudentsTableTableManager(_db, _db.students);
+  $$LecturersTableTableManager get lecturers =>
+      $$LecturersTableTableManager(_db, _db.lecturers);
+  $$CoursesTableTableManager get courses =>
+      $$CoursesTableTableManager(_db, _db.courses);
 }

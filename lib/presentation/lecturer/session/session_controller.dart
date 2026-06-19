@@ -9,6 +9,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../data/database/app_database.dart';
+import '../../../providers/app_database_provider.dart';
 
 // ── Window enum ───────────────────────────────────────────────────────────────
 
@@ -185,31 +187,96 @@ final _mockStudents = <StudentEntry>[
 
 class SessionController extends StateNotifier<ActiveSessionState> {
   Timer? _ticker;
+  StreamSubscription<List<AttendanceRecord>>? _attendanceSubscription;
+  final AppDatabase _db;
+  final String _courseCode;
+  final String _courseName;
+  final int _enrolled;
 
-  SessionController()
-      : super(_buildInitialState()) {
+  SessionController({
+    required AppDatabase db,
+    required String courseCode,
+    required String courseName,
+    required int enrolled,
+  })
+      : _db = db,
+        _courseCode = courseCode,
+        _courseName = courseName,
+        _enrolled = enrolled,
+        super(_buildInitialState(courseCode, courseName, enrolled)) {
     _startTicker();
+    _subscribeToAttendance();
     // [MOCK] — simulate 2 more students checking in after 5 s
-    Future.delayed(const Duration(seconds: 5), () {
-      if (!mounted) return;
-      state = state.copyWith(presentCount: state.presentCount + 2);
-    });
+    // Future.delayed(const Duration(seconds: 5), () {
+    //   if (!mounted) return;
+    //   state = state.copyWith(presentCount: state.presentCount + 2);
+    // });
   }
 
-  static ActiveSessionState _buildInitialState() {
+  static ActiveSessionState _buildInitialState(
+      String courseCode,
+      String courseName,
+      int enrolled,
+      ) {
     final now = DateTime.now();
     return ActiveSessionState(
-      courseCode:    'CS301',
-      courseName:    'Software Engineering',
+      courseCode:    courseCode,
+      courseName:    courseName,
       room:          'A204',
       startedAt:     now.subtract(const Duration(minutes: 2)),
       presentCutoff: now.add(const Duration(minutes: 8)),
       lateCutoff:    now.add(const Duration(minutes: 18)),
       window:        SessionWindow.present,
-      presentCount:  47,
-      lateCount:     5,
-      enrolled:      60,
-      students:      _mockStudents,
+      presentCount:  0,
+      lateCount:     0,
+      enrolled:      enrolled,
+      students:      [],
+    );
+  }
+  // Subscribe to real-time attendance updates
+  void _subscribeToAttendance() {
+    // TODO: Get actual session ID from context — for now use mock courseCode
+    const sessionId = 'session-cs301-2026-10-24';
+
+    _attendanceSubscription = _db.watchSessionAttendance(sessionId).listen(
+          (records) {
+        // Rebuild student list from enrolled + attendance records
+        _rebuildStudentList(records);
+      },
+    );
+  }
+
+  Future<void> _rebuildStudentList(List<AttendanceRecord> attendanceRecords) async {
+    final enrolled = await _db.getEnrolledStudents(_courseCode);
+
+    // Create a map of student ID → attendance record for fast lookup
+    final attendanceMap = {
+      for (final record in attendanceRecords) record.studentId: record,
+    };
+
+    // Build StudentEntry list from enrolled students + attendance
+    final students = enrolled.map((enrolledStudent) {
+      final attendance = attendanceMap[enrolledStudent.studentId];
+      return StudentEntry(
+        name:        enrolledStudent.fullName,
+        studentId:   enrolledStudent.studentId,
+        checkInTime: attendance != null ? DateTime.fromMillisecondsSinceEpoch(attendance.timestamp) : null,
+        status:      attendance == null
+            ? CheckInStatus.notCheckedIn
+            : attendance.status == 'PRESENT'
+            ? CheckInStatus.present
+            : CheckInStatus.late,
+      );
+    }).toList();
+
+    // Count present and late
+    final presentCount = students.where((s) => s.status == CheckInStatus.present).length;
+    final lateCount = students.where((s) => s.status == CheckInStatus.late).length;
+
+    state = state.copyWith(
+      students:      students,
+      presentCount:  presentCount,
+      lateCount:     lateCount,
     );
   }
 
@@ -261,6 +328,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _attendanceSubscription?.cancel();
     super.dispose();
   }
 }
@@ -307,7 +375,14 @@ class SessionSummaryState {
       absentCount / enrolled;
 }
 
-final sessionControllerProvider =
-StateNotifierProvider<SessionController, ActiveSessionState>(
-      (_) => SessionController(),
+final sessionControllerProvider = StateNotifierProvider.family<
+    SessionController,
+    ActiveSessionState,
+    ({String courseCode, String courseName, int enrolled})>(
+      (ref, params) => SessionController(
+    db: ref.watch(appDatabaseProvider),
+    courseCode: params.courseCode,
+    courseName: params.courseName,
+    enrolled: params.enrolled,
+  ),
 );
