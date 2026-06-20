@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/presentation/lecturer/reports/session_attendace_screen.dart';
 import 'package:oromark/presentation/lecturer/reports/session_attendance_controller.dart';
+import 'package:oromark/data/database/app_database.dart';
+import 'package:oromark/providers/app_database_provider.dart';
 import 'course_controller.dart';
 import 'package:oromark/core/theme/app_colors.dart';
 import 'package:oromark/data/models/course_model.dart';
@@ -57,11 +59,11 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
           child: Column(
             children: [
               _HeaderCard(
-                  course: widget.course,
+                course: widget.course,
                 onStartSession: _startSession,
               ),
               const SizedBox(height: 24),
-               _RecentSessionsSection(
+              _RecentSessionsSection(
                 courseCode: widget.course.courseCode,
                 courseName: widget.course.courseName,
               ),
@@ -250,46 +252,119 @@ class _HeaderCard extends StatelessWidget {
     );
   }
 }
-class _RecentSessionsSection extends StatelessWidget {
-
+class _RecentSessionsSection extends ConsumerStatefulWidget {
   final String courseCode;
   final String courseName;
 
   const _RecentSessionsSection({
     required this.courseCode,
     required this.courseName,
-});
+  });
+
+  @override
+  ConsumerState<_RecentSessionsSection> createState() =>
+      _RecentSessionsSectionState();
+}
+
+class _RecentSessionsSectionState extends ConsumerState<_RecentSessionsSection> {
+  bool _isLoading = true;
+  String? _error;
+  List<_SessionItem> _sessions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final db = ref.read(appDatabaseProvider);
+
+      // Get all sessions for this course
+      final driftSessions = await db.getSessionsForCourse(widget.courseCode);
+
+      // For each session, compute attendance %
+      final items = <_SessionItem>[];
+      for (final session in driftSessions) {
+        // Get who actually checked in
+        final records = await db.getSessionAttendance(session.sessionId);
+        // Get enrolled count
+        final enrolledCount = await db.getEnrolledCount(widget.courseCode);
+
+        final present = records.where((r) => r.status == 'PRESENT').length;
+        final late = records.where((r) => r.status == 'LATE').length;
+        final attendanceCount = present + late;
+        final percentage = enrolledCount > 0
+            ? ((attendanceCount / enrolledCount) * 100).round()
+            : 0;
+
+        // Derive display fields from session.startTime (unix ms)
+        final startDt = DateTime.fromMillisecondsSinceEpoch(session.startTime);
+        final month = _monthName(startDt.month);
+        final day = startDt.day.toString();
+
+        // Format time HH:MM
+        final h = startDt.hour.toString().padLeft(2, '0');
+        final m = startDt.minute.toString().padLeft(2, '0');
+        final time = '$h:$m';
+
+        // Color by percentage
+        final color = percentage >= 85
+            ? AppColors.success
+            : percentage >= 75
+            ? AppColors.warning
+            : AppColors.error;
+
+        items.add(_SessionItem(
+          sessionId:        session.sessionId,  // Now included
+          month:            month,
+          day:              day,
+          title:            '${widget.courseName}',
+          time:             time,
+          attendance:       '$percentage%',
+          attendanceColor:  color,
+        ));
+      }
+
+      // Sort by startTime descending (most recent first)
+      items.sort((a, b) => b.day.compareTo(a.day));
+
+      setState(() {
+        _sessions = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load sessions: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _monthName(int month) => switch (month) {
+    1 => 'Jan',
+    2 => 'Feb',
+    3 => 'Mar',
+    4 => 'Apr',
+    5 => 'May',
+    6 => 'Jun',
+    7 => 'Jul',
+    8 => 'Aug',
+    9 => 'Sep',
+    10 => 'Oct',
+    11 => 'Nov',
+    12 => 'Dec',
+    _ => 'Jan',
+  };
 
   @override
   Widget build(BuildContext context) {
-    // In real code, this would come from a model/controller
-    final sessions = [
-      _SessionItem(
-        month: 'Oct',
-        day: '21',
-        title: 'Lecture: Agile Methodology',
-        time: '10:15 AM',
-        attendance: '92%',
-        attendanceColor: AppColors.primary,
-      ),
-      _SessionItem(
-        month: 'Oct',
-        day: '18',
-        title: 'Session: Sprint Review',
-        time: '02:30 PM',
-        attendance: '84%',
-        attendanceColor: AppColors.secondary,
-      ),
-      _SessionItem(
-        month: 'Oct',
-        day: '14',
-        title: 'Lab: Git Workflows',
-        time: '09:00 AM',
-        attendance: '72%',
-        attendanceColor: AppColors.error,
-      ),
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -307,12 +382,10 @@ class _RecentSessionsSection extends StatelessWidget {
             ),
             const Spacer(),
             TextButton(
-              onPressed: () {
-                // TODO: navigate to full sessions history
-              },
-              child: const Text(
-                'View All',
-                style: TextStyle(
+              onPressed: _load,
+              child: Text(
+                _isLoading ? 'Loading…' : 'Refresh',
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -323,24 +396,79 @@ class _RecentSessionsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Column(
-          children: sessions
-              .map((s) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _RecentSessionCard(
-                item: s,
-                courseCode: courseCode,
-                courseName: courseName,
+        if (_isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
             ),
-          ))
-              .toList(),
-        ),
+          )
+        else if (_error != null)
+          Center(
+            child: Column(
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    size: 40, color: AppColors.textTertiary),
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (_sessions.isEmpty)
+            Center(
+              child: Column(
+                children: [
+                  Icon(Icons.history_rounded,
+                      size: 40,
+                      color: AppColors.textTertiary.withOpacity(0.5)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No sessions yet',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 13,
+                      color: AppColors.textSecondary.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: _load,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              children: _sessions
+                  .map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _RecentSessionCard(
+                  item: s,
+                  courseCode: widget.courseCode,
+                  courseName: widget.courseName,
+                ),
+              ))
+                  .toList(),
+            ),
       ],
     );
   }
 }
 
 class _SessionItem {
+  final String sessionId;  // NEW: drift Sessions.sessionId
   final String month;
   final String day;
   final String title;
@@ -349,6 +477,7 @@ class _SessionItem {
   final Color attendanceColor;
 
   const _SessionItem({
+    required this.sessionId,
     required this.month,
     required this.day,
     required this.title,
@@ -379,6 +508,7 @@ class _RecentSessionCardState extends State<_RecentSessionCard> {
   void _navigate() {
     // Convert local _SessionItem → PastSessionInfo that the report screen needs
     final info = PastSessionInfo(
+      sessionId:       widget.item.sessionId,  // Now passed from drift
       month:           widget.item.month,
       day:             widget.item.day,
       title:           widget.item.title,
@@ -392,7 +522,6 @@ class _RecentSessionCardState extends State<_RecentSessionCard> {
         builder: (_) => SessionAttendanceScreen(
           session:    info,
           courseCode: widget.courseCode,
-          courseName: widget.courseName,
         ),
       ),
     );

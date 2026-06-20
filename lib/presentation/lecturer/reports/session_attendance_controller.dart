@@ -5,6 +5,7 @@
 // [MOCK] tags = replace with drift query when backend is wired.
 
 import 'package:flutter/material.dart';
+import '../../../data/database/app_database.dart';
 
 // ── Attendance status ─────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ class SessionAttendanceRecord {
 // ── Session metadata passed from the course detail card ───────────────────────
 
 class PastSessionInfo {
+  final String sessionId;
   final String month;
   final String day;
   final String title;
@@ -37,6 +39,7 @@ class PastSessionInfo {
   final Color  attendanceColor;
 
   const PastSessionInfo({
+    required this.sessionId,
     required this.month,
     required this.day,
     required this.title,
@@ -62,14 +65,22 @@ extension AttendanceFilterLabel on AttendanceFilter {
 // ── Controller ────────────────────────────────────────────────────────────────
 
 class SessionAttendanceController extends ChangeNotifier {
-  SessionAttendanceController({required this.session}) {
+  SessionAttendanceController({
+    required AppDatabase db,
+    required this.session,
+    required String courseCode,
+  })  : _db = db,
+        _courseCode = courseCode{
     _load();
   }
 
+  final AppDatabase _db;
+  final String _courseCode;
   final PastSessionInfo session;
 
   // ── Public state ────────────────────────────────────────────────────────────
   bool isLoading = true;
+  String? error;
   AttendanceFilter activeFilter = AttendanceFilter.all;
   String searchQuery = '';
   List<SessionAttendanceRecord> _all = [];
@@ -118,14 +129,67 @@ class SessionAttendanceController extends ChangeNotifier {
     searchQuery = q;
     notifyListeners();
   }
+  Future<void> refresh() => _load();
 
   // ── [MOCK] load ──────────────────────────────────────────────────────────────
 
   Future<void> _load() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    _all = _mockRecords;
-    isLoading = false;
+    isLoading = true;
+    error     = null;
     notifyListeners();
+    try{
+      //full roaster for the course
+      final enrolled = await _db.getEnrolledStudents(_courseCode);
+
+      // Whoever actually has a record for this specific session
+      // (PRESENT / LATE submitted in real time, or ABSENT written by
+      // SessionNotifier._computeAbsent() when the session closed).
+      final records = await _db.getSessionAttendance(session.sessionId);
+      final bystudent = {
+        for (final r in records) r.studentId: r,
+      };
+
+      _all = enrolled.map((student) {
+        final record = bystudent[student.studentId];
+
+        // No record at all — session may not have been closed yet,
+        // or the absent-computation hasn't run. Treat as absent so the
+        // lecturer still sees an accurate "who hasn't checked in" view.
+        if (record == null) {
+          return SessionAttendanceRecord(
+            name:      student.fullName,
+            studentId: student.studentId,
+            status:    AttendanceStatus.absent,
+            checkInTime: null,
+          );
+        }
+
+        final status = switch (record.status) {
+          'PRESENT' => AttendanceStatus.present,
+          'LATE'    => AttendanceStatus.late,
+          _         => AttendanceStatus.absent, // 'ABSENT' or unknown
+        };
+
+        return SessionAttendanceRecord(
+          name:      student.fullName,
+          studentId: student.studentId,
+          status:    status,
+          // Absent records carry the absence-computation timestamp, not a
+          // real check-in — don't show a time for those.
+          checkInTime: status == AttendanceStatus.absent
+              ? null
+              : DateTime.fromMillisecondsSinceEpoch(record.timestamp),
+        );
+      }).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+
+      isLoading = false;
+      notifyListeners();
+    }catch (e) {
+      error     = 'Failed to load attendance: $e';
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   AttendanceStatus? _filterToStatus(AttendanceFilter f) => switch (f) {
