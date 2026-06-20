@@ -311,6 +311,35 @@ class AppDatabase extends _$AppDatabase {
       ..where((s) => s.sessionId.equals(sessionId)))
         .getSingleOrNull();
   }
+  /// Returns the profile row for the currently logged-in student.
+  /// [studentId] will come from Supabase auth once that is wired;
+  /// for now the mock student id '2023/CS/001' is used directly.
+  Future<Student?> getStudentProfile(String studentId) {
+    return (select(students)
+      ..where((p) => p.studentId.equals(studentId)))
+        .getSingleOrNull();
+  }
+
+  /// Reactive version — rebuilds the Profile screen whenever the row changes
+  /// (e.g. after a Supabase sync updates the avatar URL).
+  Stream<Student?> watchStudentProfile(String studentId) {
+    return (select(students)
+      ..where((p) => p.studentId.equals(studentId)))
+        .watchSingleOrNull();
+  }
+
+  /// Upsert a profile row — called after a successful Supabase sync.
+  Future<void> upsertStudentProfile(StudentsCompanion entry) {
+    return into(students).insertOnConflictUpdate(entry);
+  }
+
+  /// Returns all courses the student is enrolled in.
+  Future<List<EnrolledStudent>> getCoursesForStudent(String studentId) {
+    return (select(enrolledStudents)
+      ..where((s) => s.studentId.equals(studentId)))
+        .get();
+  }
+
 
   /// All sessions for a course, newest first — drives CourseDetailScreen.
   Future<List<Session>> getSessionsForCourse(String courseCode) {
