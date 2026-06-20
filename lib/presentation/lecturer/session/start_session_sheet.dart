@@ -12,6 +12,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oromark/core/utils/room_code_generator.dart';
+import 'package:oromark/presentation/lecturer/courses/course_controller.dart';
+import 'package:oromark/providers/session_notifier.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/course_model.dart';
 import 'active_session_screen.dart';
@@ -29,7 +32,6 @@ class StartSessionSheet {
       isScrollControlled: true,
       backgroundColor:    Colors.transparent,
       builder: (_) => _StartSessionSheet(
-        ref:         ref,
         preSelected: preSelected,
       ),
     );
@@ -77,24 +79,24 @@ const _kCourses = [
 
 // ── Duration options ──────────────────────────────────────────────────────────
 
-const _kDurations = ['1 hour', '1.5 hours', '2 hours'];
+const _kDurations = ['4 hours', '3 hours', '2 hours'];
 
 // ── Sheet widget ──────────────────────────────────────────────────────────────
 
-class _StartSessionSheet extends StatefulWidget {
-  final WidgetRef    ref;
+class _StartSessionSheet extends ConsumerStatefulWidget {
   final CourseModel? preSelected;
-  const _StartSessionSheet({required this.ref, this.preSelected});
+  const _StartSessionSheet({ this.preSelected});
 
   @override
-  State<_StartSessionSheet> createState() => _StartSessionSheetState();
+  ConsumerState<_StartSessionSheet> createState() => _StartSessionSheetState();
 }
 
-class _StartSessionSheetState extends State<_StartSessionSheet> {
+class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
   late CourseModel? _selected;
   String _search       = '';
   int    _durationIdx  = 0;
   bool   _isStarting   = false;
+  final roomCode = generateRoomCode();
 
   final _searchCtrl   = TextEditingController();
   final _roomCtrl     = TextEditingController();
@@ -121,6 +123,15 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
     ).toList();
   }
 
+  List<CourseModel> _filterCourses(List<CourseModel> courses) {
+    if (_search.trim().isEmpty) return courses;
+    final q = _search.toLowerCase();
+    return courses.where((c) =>
+    c.courseName.toLowerCase().contains(q) ||
+        c.courseCode.toLowerCase().contains(q),
+    ).toList();
+  }
+
   Future<void> _handleStart() async {
     if (_selected == null) return;
     HapticFeedback.mediumImpact();
@@ -133,10 +144,12 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
       2 => const Duration(hours: 2),
       _ => const Duration(hours: 1),
     };
-    final room = _roomCtrl.text.trim().isEmpty ? null : _roomCtrl.text.trim();
+    final room = _roomCtrl.text.trim().isEmpty ? roomCode : _roomCtrl.text.trim();
 
     // [MOCK] — replace with sessionNotifier.startSession()
-    await Future.delayed(const Duration(milliseconds: 900));
+    // await Future.delayed(const Duration(milliseconds: 900));
+    await ref.read(sessionNotifierProvider.notifier)
+    .startSession(_selected!.courseCode, _selected!.courseName);
     if (!mounted) return;
 
     HapticFeedback.heavyImpact();
@@ -153,6 +166,9 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final courseState = ref.watch(courseControllerProvider);
+    final filtered     = _filterCourses(courseState.courses);
+    // final roomCode = generateRoomCode();
     // DraggableScrollableSheet is the correct way to do a tall bottom sheet
     // on both phones and tablets — the framework controls height, so we never
     // need to hardcode a pixel height or fight Expanded constraints.
@@ -195,7 +211,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                     const Text(
                       'Select Course',
                       style: TextStyle(
-                        fontFamily:  'Inter',
                         fontSize:    20,
                         fontWeight:  FontWeight.w700,
                         color:       AppColors.textPrimary,
@@ -206,7 +221,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                       controller: _searchCtrl,
                       onChanged:  (v) => setState(() => _search = v),
                       style: const TextStyle(
-                        fontFamily: 'Inter',
                         fontSize:   14,
                         color:      AppColors.textPrimary,
                       ),
@@ -254,22 +268,11 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
               // ── Scrollable course list (Expanded so it fills remaining
               //    space between header and footer) ──────────────────────
               Expanded(
-                child: ListView.separated(
+                child: ListView(
                   controller:  scrollCtrl,
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 4),
-                  itemCount:       _filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) {
-                    final course     = _filtered[i];
-                    final isSelected =
-                        _selected?.courseCode == course.courseCode;
-                    return _CourseItem(
-                      course:     course,
-                      isSelected: isSelected,
-                      onTap: () => setState(() => _selected = course),
-                    );
-                  },
+                  children: _buildListChildren(courseState, filtered),
                 ),
               ),
 
@@ -292,7 +295,7 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'ROOM CODE (OPTIONAL)',
+                              'ROOM CODE',
                               style: TextStyle(
                                 fontSize:      10,
                                 fontWeight:    FontWeight.w600,
@@ -301,42 +304,14 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            TextField(
-                              controller:         _roomCtrl,
-                              textCapitalization: TextCapitalization.characters,
-                              maxLength:          8,
+                            Text(
+                              roomCode,
                               style: const TextStyle(
                                 fontSize:    14,
                                 fontWeight:  FontWeight.w600,
                                 color:       AppColors.textPrimary,
                               ),
-                              decoration: InputDecoration(
-                                hintText:    'e.g. HALL-A',
-                                counterText: '',
-                                hintStyle: const TextStyle(
-                                  fontSize:   13,
-                                  color:      AppColors.textTertiary,
-                                ),
-                                filled:      true,
-                                fillColor:   AppColors.bgPrimary,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 10),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFFE2E8E4)),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFFE2E8E4)),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                      color: AppColors.primary, width: 2),
-                                ),
-                              ),
+
                             ),
                           ],
                         ),
@@ -350,7 +325,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                             const Text(
                               'DURATION',
                               style: TextStyle(
-                                fontFamily:    'Inter',
                                 fontSize:      10,
                                 fontWeight:    FontWeight.w600,
                                 color:         AppColors.textSecondary,
@@ -375,7 +349,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                                       size: 18,
                                       color: AppColors.textSecondary),
                                   style: const TextStyle(
-                                    fontFamily: 'Inter',
                                     fontSize:   14,
                                     color:      AppColors.textPrimary,
                                   ),
@@ -423,7 +396,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                       child: const Text(
                         'Cancel',
                         style: TextStyle(
-                          fontFamily:  'Inter',
                           fontSize:    14,
                           fontWeight:  FontWeight.w600,
                         ),
@@ -466,7 +438,6 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
                               : const Text(
                             'Start Session',
                             style: TextStyle(
-                              fontFamily:    'Inter',
                               fontSize:      14,
                               fontWeight:    FontWeight.w600,
                               letterSpacing: 0.2,
@@ -485,6 +456,95 @@ class _StartSessionSheetState extends State<_StartSessionSheet> {
       },
     );
   }
+
+
+// ── List content builder ────────────────────────────────────────────────────
+// Always returns children for a ListView (never swaps to a bare Center),
+// so the DraggableScrollableSheet's scrollCtrl is always attached.
+
+List<Widget> _buildListChildren(
+    CourseListState courseState,
+    List<CourseModel> filtered,
+    ) {
+  if (courseState.isLoading) {
+    return const [
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      ),
+    ];
+  }
+
+  if (courseState.error != null) {
+    return [
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded,
+                size: 40, color: AppColors.textTertiary),
+            const SizedBox(height: 10),
+            Text(
+              courseState.error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize:   13,
+                color:      AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () =>
+                  ref.read(courseControllerProvider.notifier).loadCourses(),
+              child: const Text('Retry',
+                  style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  if (filtered.isEmpty) {
+    return const [
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off_rounded,
+                size: 40, color: AppColors.textTertiary),
+            SizedBox(height: 10),
+            Text(
+              'No courses match your search',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize:   13,
+                color:      AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  return [
+    for (final course in filtered)
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: _CourseItem(
+          course:     course,
+          isSelected: _selected?.courseCode == course.courseCode,
+          onTap:      () => setState(() => _selected = course),
+        ),
+      ),
+  ];
+}
 }
 
 // ── Course item ───────────────────────────────────────────────────────────────
@@ -562,7 +622,6 @@ class _CourseItem extends StatelessWidget {
                       Text(
                         '${course.enrolled} Students',
                         style: TextStyle(
-                          fontFamily: 'Inter',
                           fontSize:   12,
                           color: isSelected
                               ? AppColors.primary.withOpacity(0.8)
