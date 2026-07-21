@@ -8,6 +8,10 @@
 //      Use SizedBox(width:…) for the button instead.
 //   3. No SizedBox(height:…) wrapper around the sheet root — let the sheet
 //      framework control height via DraggableScrollableSheet.
+//   4. The DraggableScrollableSheet's scrollCtrl must always be attached to
+//      a scrollable widget — loading/error/empty states are rendered inside
+//      a ListView (not swapped out for a bare Center/Column) so the
+//      controller never goes unattached mid-drag.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -148,8 +152,9 @@ class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
 
     // [MOCK] — replace with sessionNotifier.startSession()
     // await Future.delayed(const Duration(milliseconds: 900));
-    await ref.read(sessionNotifierProvider.notifier)
-    .startSession(_selected!.courseCode, _selected!.courseName);
+    // await ref.read(sessionNotifierProvider.notifier)
+    // .startSession(_selected!.courseCode, _selected!.courseName);
+    await Future.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
 
     HapticFeedback.heavyImpact();
@@ -491,7 +496,6 @@ List<Widget> _buildListChildren(
               courseState.error!,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontFamily: 'Inter',
                 fontSize:   13,
                 color:      AppColors.textSecondary,
               ),

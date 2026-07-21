@@ -82,7 +82,6 @@ class _SessionAttendanceScreenState
             Text(
               widget.session.title,
               style: const TextStyle(
-                fontFamily: 'Inter',
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -94,7 +93,6 @@ class _SessionAttendanceScreenState
             Text(
               '${widget.session.month} ${widget.session.day} · ${widget.session.time}',
               style: const TextStyle(
-                fontFamily: 'Inter',
                 fontSize: 12,
                 color: AppColors.textSecondary,
               ),
@@ -149,7 +147,6 @@ class _SessionAttendanceScreenState
             _controller.error!,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontFamily: 'Inter',
               fontSize: 14,
               color: AppColors.textSecondary,
             ),
@@ -212,7 +209,6 @@ class _SessionAttendanceScreenState
             controller: _searchCtrl,
             onChanged: (v) => _controller.setSearch(v),
             style: const TextStyle(
-              fontFamily: 'Inter',
               fontSize: 14,
               color: AppColors.textPrimary,
             ),
@@ -272,7 +268,6 @@ class _SessionAttendanceScreenState
                     backgroundColor: AppColors.bgSecondary,
                     selectedColor: AppColors.primary.withOpacity(0.2),
                     labelStyle: TextStyle(
-                      fontFamily: 'Inter',
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: _controller.activeFilter == filter
@@ -309,7 +304,6 @@ class _SessionAttendanceScreenState
                 Text(
                   'No students match',
                   style: TextStyle(
-                    fontFamily: 'Inter',
                     fontSize: 14,
                     color: AppColors.textSecondary.withOpacity(0.7),
                   ),
@@ -357,7 +351,6 @@ class _SessionAttendanceScreenState
                           Text(
                             record.name,
                             style: const TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: AppColors.textPrimary,
@@ -369,7 +362,6 @@ class _SessionAttendanceScreenState
                           Text(
                             record.studentId,
                             style: const TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 12,
                               color: AppColors.textSecondary,
                             ),
@@ -385,7 +377,6 @@ class _SessionAttendanceScreenState
                         Text(
                           _statusLabel(record.status),
                           style: TextStyle(
-                            fontFamily: 'Inter',
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: _statusColor(record.status),
@@ -396,7 +387,6 @@ class _SessionAttendanceScreenState
                           Text(
                             _formatTime(record.checkInTime!),
                             style: const TextStyle(
-                              fontFamily: 'Inter',
                               fontSize: 11,
                               color: AppColors.textSecondary,
                             ),
@@ -469,7 +459,6 @@ class _StatPill extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontFamily: 'Inter',
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: color,
@@ -485,7 +474,6 @@ class _StatPill extends StatelessWidget {
             child: Text(
               count.toString(),
               style: TextStyle(
-                fontFamily: 'Inter',
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: color,

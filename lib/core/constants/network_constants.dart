@@ -5,6 +5,6 @@ class NetworkConstants {
   static const String broadcastAddress = '255.255.255.255';
   static const int presentMinutes = 20;
   static const int lateMinutes = 30;
-  static const int broadcastIntervalPresent = 2;
-  static const int broadcastIntervalLate = 10;
+  static const int broadcastIntervalPresent = 6;
+  static const int broadcastIntervalLate = 20;
 }

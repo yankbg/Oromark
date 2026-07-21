@@ -374,7 +374,6 @@ class _RecentSessionsSectionState extends ConsumerState<_RecentSessionsSection> 
             const Text(
               'Recent Sessions',
               style: TextStyle(
-                fontFamily: 'Inter',
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -386,7 +385,6 @@ class _RecentSessionsSectionState extends ConsumerState<_RecentSessionsSection> 
               child: Text(
                 _isLoading ? 'Loading…' : 'Refresh',
                 style: const TextStyle(
-                  fontFamily: 'Inter',
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: AppColors.primary,
@@ -414,7 +412,6 @@ class _RecentSessionsSectionState extends ConsumerState<_RecentSessionsSection> 
                   _error!,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontFamily: 'Inter',
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
@@ -433,7 +430,6 @@ class _RecentSessionsSectionState extends ConsumerState<_RecentSessionsSection> 
                   Text(
                     'No sessions yet',
                     style: TextStyle(
-                      fontFamily: 'Inter',
                       fontSize: 13,
                       color: AppColors.textSecondary.withOpacity(0.7),
                     ),
@@ -569,7 +565,6 @@ class _RecentSessionCardState extends State<_RecentSessionCard> {
                     Text(
                       widget.item.month.toUpperCase(),
                       style: const TextStyle(
-                        fontFamily:  'Inter',
                         fontSize:    10,
                         fontWeight:  FontWeight.w700,
                         color:       AppColors.textSecondary,
@@ -578,7 +573,6 @@ class _RecentSessionCardState extends State<_RecentSessionCard> {
                     Text(
                       widget.item.day,
                       style: const TextStyle(
-                        fontFamily:  'Inter',
                         fontSize:    16,
                         fontWeight:  FontWeight.w700,
                         color:       AppColors.textPrimary,
@@ -597,7 +591,6 @@ class _RecentSessionCardState extends State<_RecentSessionCard> {
                     Text(
                       widget.item.title,
                       style: const TextStyle(
-                        fontFamily:  'Inter',
                         fontSize:    14,
                         fontWeight:  FontWeight.w600,
                         color:       AppColors.textPrimary,
@@ -612,7 +605,6 @@ class _RecentSessionCardState extends State<_RecentSessionCard> {
                         Text(
                           widget.item.time,
                           style: const TextStyle(
-                            fontFamily: 'Inter',
                             fontSize:   12,
                             color:      AppColors.textSecondary,
                           ),
@@ -634,7 +626,6 @@ class _RecentSessionCardState extends State<_RecentSessionCard> {
                       Text(
                         widget.item.attendance,
                         style: TextStyle(
-                          fontFamily:  'Inter',
                           fontSize:    14,
                           fontWeight:  FontWeight.w700,
                           color:       widget.item.attendanceColor,
@@ -651,7 +642,6 @@ class _RecentSessionCardState extends State<_RecentSessionCard> {
                         child: const Text(
                           'COMPLETED',
                           style: TextStyle(
-                            fontFamily:    'Inter',
                             fontSize:      10,
                             fontWeight:    FontWeight.w700,
                             color:         AppColors.primary,
