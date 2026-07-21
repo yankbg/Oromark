@@ -311,6 +311,14 @@ class AppDatabase extends _$AppDatabase {
       ..where((s) => s.sessionId.equals(sessionId)))
         .getSingleOrNull();
   }
+  /// Called when session ends to record final status
+  Future<void> updateSessionStatus(String sessionId, String newStatus) async {
+    await (update(sessions)
+      ..where((s) => s.sessionId.equals(sessionId)))
+        .write(SessionsCompanion(
+      status: Value(newStatus),
+    ));
+  }
   /// Returns the profile row for the currently logged-in student.
   /// [studentId] will come from Supabase auth once that is wired;
   /// for now the mock student id '2023/CS/001' is used directly.
