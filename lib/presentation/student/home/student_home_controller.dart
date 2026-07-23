@@ -22,6 +22,8 @@ class DetectedSession {
   final String roomCode;
   final DateTime presentCutoff;
   final DateTime lateCutoff;
+  final String lecturerIP;
+  final int lecturerPort;
 
   const DetectedSession({
     required this.sessionId,
@@ -32,6 +34,8 @@ class DetectedSession {
     required this.roomCode,
     required this.presentCutoff,
     required this.lateCutoff,
+    required this.lecturerIP,
+    required this.lecturerPort,
   });
 
   bool get isLate => DateTime.now().isAfter(presentCutoff);
@@ -95,6 +99,8 @@ class StudentHomeController extends ChangeNotifier {
         roomCode: 'ALPHA7',
         presentCutoff: now.add(const Duration(minutes: 8, seconds: 45)),
         lateCutoff: now.add(const Duration(minutes: 18, seconds: 45)),
+        lecturerIP: '0.0.0.0',
+        lecturerPort: 3000
       );
       notifyListeners();
     });
