@@ -356,6 +356,42 @@ class AppDatabase extends _$AppDatabase {
       ..orderBy([(s) => OrderingTerm.desc(s.startTime)]))
         .get();
   }
+  /// Insert attendance record after HTTP success
+  Future<void> insertAttendanceRecord({
+    required String sessionId,
+    required String studentId,
+    required String status,
+    required int submittedAt,
+  }) async {
+    await into(attendanceRecords).insert(
+      AttendanceRecordsCompanion.insert(
+        sessionId: sessionId,
+        studentId: studentId,
+        status: status,
+        timestamp: submittedAt,
+      ),
+      onConflict: DoUpdate(
+            (old) => AttendanceRecordsCompanion(
+          status: Value(status),
+              timestamp: Value(submittedAt),
+        ),
+      ),
+    );
+  }
+
+  /// Get attendance for a student in a session
+  Future<AttendanceRecord?> getAttendanceRecord({
+    required String sessionId,
+    required String studentId,
+  }) async {
+    return (select(attendanceRecords)
+      ..where((tbl) =>
+      tbl.sessionId.equals(sessionId) &
+      tbl.studentId.equals(studentId)))
+        .getSingleOrNull();
+  }
+
+
   Future<AuthResult?> login({
     String? studentId,
     String? email,

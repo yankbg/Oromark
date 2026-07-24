@@ -1,34 +1,49 @@
 // lib/presentation/student/home/confirmation_screen.dart
 //
-// Simple confirm-or-cancel attendance screen.
-// No biometric, no PIN — just a session summary and two action buttons.
-// On confirm → success overlay → auto-pop back to home.
-// On cancel  → immediately pops back.
+// UPDATED VERSION: Real HTTP submission to lecturer's server.
+// Handles network errors, timeouts, and displays appropriate feedback.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oromark/data/services/attendace_submission_service.dart';
 import '../../../core/theme/app_colors.dart';
-import 'student_home_controller.dart'; // DetectedSession lives here
+import 'student_home_controller.dart';
+import '../../../providers/app_database_provider.dart';
 
-class ConfirmationScreen extends StatefulWidget {
+
+class ConfirmationScreen extends ConsumerStatefulWidget {
   final DetectedSession session;
-  const ConfirmationScreen({super.key, required this.session});
+  final String studentId;
+  final Future<String> Function({
+  required DetectedSession session,
+  required String studentId,
+  })? onSubmit;
+
+  const ConfirmationScreen({
+    super.key,
+    required this.session,
+    this.studentId = 'U-2023-8841', // [MOCK] — will be replaced with real auth
+    this.onSubmit,
+  });
 
   @override
-  State<ConfirmationScreen> createState() => _ConfirmationScreenState();
+  ConsumerState<ConfirmationScreen> createState() => _ConfirmationScreenState();
 }
 
-class _ConfirmationScreenState extends State<ConfirmationScreen> {
+class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
   bool _submitting = false;
-  bool _confirmed  = false;
+  bool _confirmed = false;
+  String? _error;
+  String? _status; // PRESENT, LATE, ABSENT
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        statusBarColor:          Colors.transparent,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
       ),
     );
@@ -38,20 +53,77 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     HapticFeedback.mediumImpact();
     setState(() => _submitting = true);
 
-    // TODO: replace with ConfirmAttendanceUseCase → HTTP POST + DB insert
-    await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      String status;
 
-    if (!mounted) return;
-    HapticFeedback.heavyImpact();
-    setState(() {
-      _submitting = false;
-      _confirmed  = true;
-    });
+      if (widget.onSubmit != null) {
+        // Use provided callback (for testing/custom behavior)
+        status = await widget.onSubmit!(
+          session: widget.session,
+          studentId: widget.studentId,
+        );
+      } else {
+        // Real HTTP submission to lecturer's server
+        status = await _submitToServer();
+      }
 
-    // Auto-pop after the success overlay shows
-    Future.delayed(const Duration(milliseconds: 2600), () {
-      if (mounted) Navigator.of(context).pop();
-    });
+      if (!mounted) return;
+
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _submitting = false;
+        _confirmed = true;
+        _status = status;
+        _error = null;
+      });
+
+      // Auto-pop after success overlay shows
+      Future.delayed(const Duration(milliseconds: 2600), () {
+        if (mounted) Navigator.of(context).pop();
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      HapticFeedback.lightImpact();
+      setState(() {
+        _submitting = false;
+        _error = _formatErrorMessage(e);
+      });
+
+      print('[ConfirmationScreen] Error: $e');
+    }
+  }
+
+  /// Real HTTP submission to lecturer's server
+  Future<String> _submitToServer() async {
+    print('[ConfirmationScreen] Submitting to ${widget.session.lecturerIP}:${widget.session.lecturerPort}');
+
+    // TODO: Get database from Riverpod provider
+    final db = ref.read(appDatabaseProvider);
+    final service = AttendanceSubmissionService(db);
+
+    final status = await service.submitAttendance(
+      session: widget.session,
+      studentId: widget.studentId,
+    );
+
+    return status;
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is TimeoutException) {
+      return 'Connection timeout. Check WiFi and try again.';
+    } else if (error is NetworkException) {
+      return error.message;
+    } else if (error is BadRequestException) {
+      return error.message;
+    } else if (error is DuplicateSubmissionException) {
+      return 'Already submitted. No duplicate entries allowed.';
+    } else if (error is NotFoundException) {
+      return 'Session not found. Try again.';
+    } else {
+      return error.toString();
+    }
   }
 
   void _handleCancel() {
@@ -66,7 +138,7 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
-            end:   Alignment.bottomCenter,
+            end: Alignment.bottomCenter,
             stops: [0.0, 0.42],
             colors: [AppColors.primary, AppColors.bgSecondary],
           ),
@@ -109,6 +181,41 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
                             ),
                           ),
                           const SizedBox(height: 32),
+
+                          // ── Error message ─────────────────────────────────
+                          if (_error != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.error,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppColors.error.withOpacity(0.4),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline_rounded,
+                                    color: AppColors.error,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _error!,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.error,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
 
                           // ── Confirm button ────────────────────────────────
                           SizedBox(
@@ -183,8 +290,11 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
               ),
 
               // ── Success overlay ───────────────────────────────────────────
-              if (_confirmed)
-                _SuccessOverlay(isLate: widget.session.isLate),
+              if (_confirmed && _status != null)
+                _SuccessOverlay(
+                  isLate: widget.session.isLate,
+                  status: _status!,
+                ),
             ],
           ),
         ),
@@ -221,7 +331,7 @@ class _AppBar extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 48), // balance the back button
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -229,7 +339,7 @@ class _AppBar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Session summary card  (frosted-glass style)
+// Session card (same as before)
 // ─────────────────────────────────────────────────────────────────────────────
 class _SessionCard extends StatelessWidget {
   final DetectedSession session;
@@ -237,125 +347,58 @@ class _SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now     = DateTime.now();
-    final timeStr = '${now.hour.toString().padLeft(2, '0')}:'
-        '${now.minute.toString().padLeft(2, '0')}';
-    final isLate  = session.isLate;
-
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.88),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFFBEC9C3).withOpacity(0.35),
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.07),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Course ─────────────────────────────────────────
-          const Text(
-            'COURSE',
-            style: TextStyle(
+          Text(
+            session.courseCode,
+            style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-              letterSpacing: 1.1,
+              color: AppColors.primary,
+              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            session.courseCode,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
             session.courseName,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
-              height: 1.2,
             ),
           ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(height: 1, color: Color(0xFFE2E8E4)),
+          const SizedBox(height: 16),
+          _DetailCell(
+            icon: Icons.person_rounded,
+            label: 'Lecturer',
+            value: session.lecturerName,
           ),
-
-          // ── Lecturer + room row ────────────────────────────
-          Row(
-            children: [
-              _DetailCell(
-                icon: Icons.person_rounded,
-                label: 'Lecturer',
-                value: session.lecturerName,
-              ),
-              const SizedBox(width: 24),
-              _DetailCell(
-                icon: Icons.location_on_rounded,
-                label: 'Room',
-                value: session.room,
-              ),
-            ],
+          const SizedBox(height: 12),
+          _DetailCell(
+            icon: Icons.location_on_rounded,
+            label: 'Room',
+            value: session.room,
           ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Divider(height: 1, color: Color(0xFFE2E8E4)),
+          const SizedBox(height: 12),
+          _DetailCell(
+            icon: Icons.vpn_key_rounded,
+            label: 'Room Code',
+            value: session.roomCode,
           ),
-
-          // ── Time + status row ──────────────────────────────
-          Row(
-            children: [
-              const Icon(Icons.schedule_rounded,
-                  size: 16, color: AppColors.textSecondary),
-              const SizedBox(width: 6),
-              Text(
-                '$timeStr · Today',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const Spacer(),
-              // Window status badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: isLate ? AppColors.lateBg : AppColors.primary,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-                child: Text(
-                  isLate ? '⏱  LATE' : '✓  PRESENT',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: isLate ? AppColors.lateText : Colors.white,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // ── Remaining time bar ─────────────────────────────
           const SizedBox(height: 16),
           _RemainingBar(session: session),
         ],
@@ -388,26 +431,35 @@ class _DetailCell extends StatelessWidget {
           child: Icon(icon, size: 18, color: AppColors.primary),
         ),
         const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
                 style: const TextStyle(
-                    fontSize: 11, color: AppColors.textSecondary)),
-            const SizedBox(height: 1),
-            Text(value,
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
                 style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary)),
-          ],
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-// Thin time-remaining progress bar inside the card
 class _RemainingBar extends StatelessWidget {
   final DetectedSession session;
   const _RemainingBar({required this.session});
@@ -415,12 +467,8 @@ class _RemainingBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = session.remaining;
-    final total = session.isLate
-        ? session.lateCutoff.difference(session.presentCutoff)
-        : session.presentCutoff.difference(
-        session.presentCutoff.subtract(const Duration(minutes: 20)));
-    final progress = (remaining.inSeconds / total.inSeconds).clamp(0.0, 1.0);
-    final color    = session.isLate ? AppColors.warning : AppColors.success;
+    final isLate = session.isLate;
+    final color = isLate ? AppColors.warning : AppColors.success;
 
     final m = remaining.inMinutes;
     final s = remaining.inSeconds % 60;
@@ -432,9 +480,8 @@ class _RemainingBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Window closes in',
-              style: const TextStyle(
-                  fontSize: 11, color: AppColors.textSecondary),
+              isLate ? 'Late window closes in' : 'Present window closes in',
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
             Text(
               '$m:${s.toString().padLeft(2, '0')}',
@@ -450,7 +497,9 @@ class _RemainingBar extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(99),
           child: LinearProgressIndicator(
-            value: progress,
+            value: remaining.inSeconds > 0
+                ? (remaining.inSeconds / (20 * 60)).clamp(0.0, 1.0)
+                : 0.0,
             minHeight: 5,
             backgroundColor: AppColors.bgTertiary,
             valueColor: AlwaysStoppedAnimation(color),
@@ -466,7 +515,9 @@ class _RemainingBar extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _SuccessOverlay extends StatefulWidget {
   final bool isLate;
-  const _SuccessOverlay({required this.isLate});
+  final String status;
+
+  const _SuccessOverlay({required this.isLate, required this.status});
 
   @override
   State<_SuccessOverlay> createState() => _SuccessOverlayState();
@@ -475,7 +526,7 @@ class _SuccessOverlay extends StatefulWidget {
 class _SuccessOverlayState extends State<_SuccessOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
-  late final Animation<double>    _fade;
+  late final Animation<double> _fade;
 
   @override
   void initState() {
@@ -495,6 +546,8 @@ class _SuccessOverlayState extends State<_SuccessOverlay>
 
   @override
   Widget build(BuildContext context) {
+    final statusText = widget.status == 'LATE' ? '⏱ LATE' : '✓ PRESENT';
+
     return FadeTransition(
       opacity: _fade,
       child: Container(
@@ -503,7 +556,6 @@ class _SuccessOverlayState extends State<_SuccessOverlay>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Elastic bounce checkmark orb
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0.5, end: 1.0),
                 duration: const Duration(milliseconds: 550),
@@ -545,14 +597,13 @@ class _SuccessOverlayState extends State<_SuccessOverlay>
               ),
               const SizedBox(height: 24),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 22, vertical: 9),
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
-                  widget.isLate ? '⏱  LATE' : '✓  PRESENT',
+                  statusText,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

@@ -9,6 +9,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:oromark/data/database/app_database.dart';
+import 'package:oromark/data/services/attendace_submission_service.dart';
 
 // ── Detected session model ────────────────────────────────────────────────────
 // Pure data; no Flutter dependency. Will be replaced by the domain entity
@@ -47,20 +49,30 @@ class DetectedSession {
   }
 
   bool get isExpired => DateTime.now().isAfter(lateCutoff);
+  @override
+  String toString() => '$courseCode by $lecturerName ($roomCode)';
 }
 
 // ── Controller ────────────────────────────────────────────────────────────────
 class StudentHomeController extends ChangeNotifier {
-  StudentHomeController({required TickerProvider vsync}) {
+  StudentHomeController({
+    required TickerProvider vsync,
+    AppDatabase? database,}): _db = database {
     _initAnimations(vsync);
     _startMockSession(); // [MOCK] — replace with udpService.startListening()
     _startCountdownTicker();
   }
+  final AppDatabase? _db;
 
   // ── Public state ────────────────────────────────────────────────────────────
   DetectedSession? session;
   bool confirmed = false;
   int navIndex = 0;
+
+  // Submission state
+  bool isSubmitting = false;
+  String? submissionError;
+  String? attendanceStatus; // PRESENT, LATE, ABSENT, or ERROR
 
   // Wave animation controllers — exposed so the screen can pass to widgets
   late final AnimationController wave1;
@@ -122,6 +134,60 @@ class StudentHomeController extends ChangeNotifier {
 
   void setNavIndex(int i) {
     navIndex = i;
+    notifyListeners();
+  }
+
+  /// Submit attendance via HTTP
+  /// Called from ConfirmationScreen after user confirms
+  Future<String> submitAttendance({
+    required DetectedSession session,
+    required String studentId,
+  }) async {
+    if (_db == null) {
+      print('[StudentHomeController] Database not initialized');
+      return 'ERROR';
+    }
+
+    try {
+      isSubmitting = true;
+      submissionError = null;
+      notifyListeners();
+
+      final service = AttendanceSubmissionService(_db!);
+      final status = await service.submitAttendance(
+        session: session,
+        studentId: studentId,
+      );
+
+      isSubmitting = false;
+      attendanceStatus = status;
+      notifyListeners();
+
+      return status;
+    } catch (e) {
+      isSubmitting = false;
+      submissionError = e.toString();
+      attendanceStatus = 'ERROR';
+      notifyListeners();
+
+      print('[StudentHomeController] Submission error: $e');
+      return 'ERROR';
+    }
+  }
+
+  /// Select a discovered session
+  void selectSession(DetectedSession detectedSession) {
+    session = detectedSession;
+    confirmed = false;
+    notifyListeners();
+  }
+
+  /// Clear current session
+  void clearSession() {
+    session = null;
+    confirmed = false;
+    submissionError = null;
+    attendanceStatus = null;
     notifyListeners();
   }
 

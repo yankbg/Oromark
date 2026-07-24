@@ -66,7 +66,7 @@ class AttendanceSubmissionService {
           sessionId: session.sessionId,
           studentId: studentId,
           status: status,
-          submittedAt: DateTime.now(),
+          submittedAt: DateTime.now().millisecondsSinceEpoch,
         );
 
         return status; // PRESENT, LATE, or ABSENT
