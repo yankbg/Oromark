@@ -392,68 +392,68 @@ class AppDatabase extends _$AppDatabase {
   }
 
 
-  Future<AuthResult?> login({
-    String? studentId,
-    String? email,
-    required String password,
+    Future<AuthResult?> login({
+      String? studentId,
+      String? email,
+      required String password,
 
-}) async{
-    // 1) Try student by studentId + password
-    if (studentId != null && studentId.isNotEmpty) {
-      final studentQuery = select(students)
-        ..where((tbl) => tbl.studentId.equals(studentId))
-        ..where((tbl) => tbl.password.equals(password));
+  }) async{
+      // 1) Try student by studentId + password
+      if (studentId != null && studentId.isNotEmpty) {
+        final studentQuery = select(students)
+          ..where((tbl) => tbl.studentId.equals(studentId))
+          ..where((tbl) => tbl.password.equals(password));
 
-      final student = await studentQuery.getSingleOrNull();
-      if (student != null) {
-        return AuthResult.student(
-          fullname: student.studentName,
-          userId: student.studentId,
-          email: student.studentEmail,
-          program: student.programme,
-          yearOfStudy: student.yearOfStudy
-        );
-      }
-    }
-    // 2) Try student by email + password
-    if (email != null && email.isNotEmpty) {
-      final studentQuery = select(students)
-        ..where((tbl) => tbl.studentEmail.equals(email))
-        ..where((tbl) => tbl.password.equals(password));
-
-      final student = await studentQuery.getSingleOrNull();
-      if (student != null) {
-        return AuthResult.student(
+        final student = await studentQuery.getSingleOrNull();
+        if (student != null) {
+          return AuthResult.student(
             fullname: student.studentName,
             userId: student.studentId,
             email: student.studentEmail,
             program: student.programme,
             yearOfStudy: student.yearOfStudy
-        );
+          );
+        }
       }
-    }
-    // 3) Try lecturer by email + password
-    if (email != null && email.isNotEmpty) {
-      final lecturerQuery = select(lecturers)
-        ..where((tbl) => tbl.lecturerEmail.equals(email))
-        ..where((tbl) => tbl.password.equals(password));
+      // 2) Try student by email + password
+      if (email != null && email.isNotEmpty) {
+        final studentQuery = select(students)
+          ..where((tbl) => tbl.studentEmail.equals(email))
+          ..where((tbl) => tbl.password.equals(password));
 
-      final lecturer = await lecturerQuery.getSingleOrNull();
-      if (lecturer != null) {
-        return AuthResult.lecturer(
-          fullname: lecturer.lecturerName,
-          userId: lecturer.lecturerId,
-          email: lecturer.lecturerEmail,
-          department: lecturer.department
-        );
+        final student = await studentQuery.getSingleOrNull();
+        if (student != null) {
+          return AuthResult.student(
+              fullname: student.studentName,
+              userId: student.studentId,
+              email: student.studentEmail,
+              program: student.programme,
+              yearOfStudy: student.yearOfStudy
+          );
+        }
       }
+      // 3) Try lecturer by email + password
+      if (email != null && email.isNotEmpty) {
+        final lecturerQuery = select(lecturers)
+          ..where((tbl) => tbl.lecturerEmail.equals(email))
+          ..where((tbl) => tbl.password.equals(password));
+
+        final lecturer = await lecturerQuery.getSingleOrNull();
+        if (lecturer != null) {
+          return AuthResult.lecturer(
+            fullname: lecturer.lecturerName,
+            userId: lecturer.lecturerId,
+            email: lecturer.lecturerEmail,
+            department: lecturer.department
+          );
+        }
+      }
+
+      // 4) No match found
+      return null;
     }
 
-    // 4) No match found
-    return null;
   }
-
-}
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {

@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oromark/providers/session_discovery_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import 'student_home_controller.dart';
 import 'confirmation_screen.dart';
@@ -115,53 +116,130 @@ class SessionDiscoverySheet extends ConsumerWidget {
 }
 
 // ── Session list implementation ───────────────────────────────────────────────
-class _SessionList extends StatelessWidget {
+class _SessionList extends ConsumerWidget {
   final Function(DetectedSession) onSessionSelected;
 
   const _SessionList({required this.onSessionSelected});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final discoveredSessionsAsync = ref.watch(discoveredSessionsProvider);
     // [MOCK] For testing, return 2 mock sessions
     // After UDP is integrated, this will come from Riverpod provider
 
-    final mockSessions = [
-      DetectedSession(
-        sessionId: 'mock-uuid-001',
-        courseCode: 'CS301',
-        courseName: 'Software Engineering',
-        lecturerName: 'Dr. John Doe',
-        room: 'A204',
-        roomCode: 'A3K9',
-        presentCutoff: DateTime.now().add(const Duration(minutes: 8)),
-        lateCutoff: DateTime.now().add(const Duration(minutes: 18)),
-        lecturerIP: '192.168.1.100', // [MOCK]
-        lecturerPort: 3000,
-      ),
-      DetectedSession(
-        sessionId: 'mock-uuid-002',
-        courseCode: 'CS202',
-        courseName: 'Data Structures',
-        lecturerName: 'Dr. Sarah Smith',
-        room: 'B105',
-        roomCode: 'B2M7',
-        presentCutoff: DateTime.now().add(const Duration(minutes: 12)),
-        lateCutoff: DateTime.now().add(const Duration(minutes: 22)),
-        lecturerIP: '192.168.1.101', // [MOCK]
-        lecturerPort: 3000,
-      ),
-    ];
+    // final mockSessions = [
+    //   DetectedSession(
+    //     sessionId: 'mock-uuid-001',
+    //     courseCode: 'CS301',
+    //     courseName: 'Software Engineering',
+    //     lecturerName: 'Dr. John Doe',
+    //     room: 'A204',
+    //     roomCode: 'A3K9',
+    //     presentCutoff: DateTime.now().add(const Duration(minutes: 8)),
+    //     lateCutoff: DateTime.now().add(const Duration(minutes: 18)),
+    //     lecturerIP: '192.168.1.100', // [MOCK]
+    //     lecturerPort: 3000,
+    //   ),
+    //   DetectedSession(
+    //     sessionId: 'mock-uuid-002',
+    //     courseCode: 'CS202',
+    //     courseName: 'Data Structures',
+    //     lecturerName: 'Dr. Sarah Smith',
+    //     room: 'B105',
+    //     roomCode: 'B2M7',
+    //     presentCutoff: DateTime.now().add(const Duration(minutes: 12)),
+    //     lateCutoff: DateTime.now().add(const Duration(minutes: 22)),
+    //     lecturerIP: '192.168.1.101', // [MOCK]
+    //     lecturerPort: 3000,
+    //   ),
+    // ];
+    //
+    // if (mockSessions.isEmpty) {
+    //   return _EmptyState();
+    // }
 
-    if (mockSessions.isEmpty) {
-      return _EmptyState();
-    }
+    return discoveredSessionsAsync.when(
+      // ✅ Loading state: Show spinner
+      loading: () => const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Listening for broadcasts...',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: mockSessions.length,
-      itemBuilder: (context, index) => _SessionTile(
-        session: mockSessions[index],
-        onTap: onSessionSelected,
+      // ✅ Success: Show list of discovered sessions
+      data: (sessions) {
+        if (sessions.isEmpty) {
+          return _EmptyState();
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          itemCount: sessions.length,
+          itemBuilder: (context, index) => _SessionTile(
+            session: sessions[index],
+            onTap: onSessionSelected,
+          ),
+        );
+      },
+
+      // ❌ Error: Show error message
+      error: (error, stackTrace) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.error,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: AppColors.error,
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Discovery Error',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                error.toString(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -201,13 +279,26 @@ class _EmptyState extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 32),
             child: Text(
-              'Check back when a lecturer starts a session nearby.',
+              'Waiting for lecturer to start a session.\nKeep this screen open.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
                 color: AppColors.textSecondary,
                 height: 1.5,
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Refresh button to retry discovery
+          ElevatedButton.icon(
+            onPressed: () {
+              // Refresh the provider to restart discovery
+              // User can tap if they know a session should be available
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
             ),
           ),
         ],

@@ -6,21 +6,24 @@
 
   import 'package:flutter/material.dart';
   import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
   import 'package:oromark/presentation/student/history/history_screen.dart';
   import 'package:oromark/presentation/student/profile/profile_screen.dart';
+import 'package:oromark/providers/app_database_provider.dart';
   import '../../../core/theme/app_colors.dart';
-  import 'student_home_controller.dart';
+  import '../../../providers/session_discovery_provider.dart';
+import 'student_home_controller.dart';
   import 'session_card.dart';
   import 'confirmation_screen.dart';
 
-  class StudentHomeScreen extends StatefulWidget {
+  class StudentHomeScreen extends ConsumerStatefulWidget {
     const StudentHomeScreen({super.key});
 
     @override
-    State<StudentHomeScreen> createState() => _StudentHomeScreenState();
+    ConsumerState<StudentHomeScreen> createState() => _StudentHomeScreenState();
   }
 
-  class _StudentHomeScreenState extends State<StudentHomeScreen>
+  class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen>
       with TickerProviderStateMixin {
     late final StudentHomeController _controller;
 
@@ -33,8 +36,13 @@
           statusBarIconBrightness: Brightness.dark,
         ),
       );
-      _controller = StudentHomeController(vsync: this)
-        ..addListener(() => setState(() {}));
+      final udpService = ref.read(udpServiceProvider);
+      final db = ref.read(appDatabaseProvider);
+      _controller = StudentHomeController(
+        vsync: this,
+        udpService: udpService,
+        database: db,
+      )..addListener(() => setState(() {}));
     }
 
     @override

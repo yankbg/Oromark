@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:oromark/data/database/app_database.dart';
 import 'package:oromark/data/services/attendace_submission_service.dart';
+import 'package:oromark/data/services/udp_service.dart';
+import 'package:oromark/providers/session_discovery_provider.dart';
 
 // ── Detected session model ────────────────────────────────────────────────────
 // Pure data; no Flutter dependency. Will be replaced by the domain entity
@@ -57,12 +59,15 @@ class DetectedSession {
 class StudentHomeController extends ChangeNotifier {
   StudentHomeController({
     required TickerProvider vsync,
-    AppDatabase? database,}): _db = database {
+    required UdpService udpService,
+    AppDatabase? database,}): _db = database,
+        _udpService = udpService {
     _initAnimations(vsync);
-    _startMockSession(); // [MOCK] — replace with udpService.startListening()
+    _startListening(); // [MOCK] — replace with udpService.startListening()
     _startCountdownTicker();
   }
   final AppDatabase? _db;
+  final UdpService _udpService;
 
   // ── Public state ────────────────────────────────────────────────────────────
   DetectedSession? session;
@@ -99,23 +104,53 @@ class StudentHomeController extends ChangeNotifier {
   }
 
   // ── [MOCK] Simulates receiving a UDP broadcast after 2 s ──────────────────
-  void _startMockSession() {
-    Future.delayed(const Duration(seconds: 2), () {
-      final now = DateTime.now();
-      session = DetectedSession(
-        sessionId: 'mock-uuid-001',
-        courseCode: 'CS301',
-        courseName: 'Software Engineering',
-        lecturerName: 'Dr. Henderson',
-        room: 'A204',
-        roomCode: 'ALPHA7',
-        presentCutoff: now.add(const Duration(minutes: 8, seconds: 45)),
-        lateCutoff: now.add(const Duration(minutes: 18, seconds: 45)),
-        lecturerIP: '0.0.0.0',
-        lecturerPort: 3000
-      );
-      notifyListeners();
-    });
+  // void _startMockSession() {
+  //   Future.delayed(const Duration(seconds: 2), () {
+  //     final now = DateTime.now();
+  //     session = DetectedSession(
+  //       sessionId: 'mock-uuid-001',
+  //       courseCode: 'CS301',
+  //       courseName: 'Software Engineering',
+  //       lecturerName: 'Dr. Henderson',
+  //       room: 'A204',
+  //       roomCode: 'ALPHA7',
+  //       presentCutoff: now.add(const Duration(minutes: 8, seconds: 45)),
+  //       lateCutoff: now.add(const Duration(minutes: 18, seconds: 45)),
+  //       lecturerIP: '0.0.0.0',
+  //       lecturerPort: 3000
+  //     );
+  //     notifyListeners();
+  //   });
+  // }
+  Future<void> _startListening() async {
+    try {
+      await _udpService.startListening((sessionData) {
+        final data = sessionData;
+
+        final detected = DetectedSession(
+          sessionId: data['sessionId'] as String,
+          courseCode: data['courseCode'] as String,
+          courseName: data['courseName'] as String,
+          lecturerName: data['lecturerName'] as String,
+          room: data['room'] as String,
+          roomCode: data['roomCode'] as String,
+          presentCutoff: DateTime.now().add(
+            Duration(minutes: data['presentMinutes'] as int),
+          ),
+          lateCutoff: DateTime.now().add(
+            Duration(minutes: data['lateMinutes'] as int),
+          ),
+          lecturerIP: data['lecturerIP'] as String,
+          lecturerPort: data['lecturerPort'] as int,
+        );
+
+        session = detected;
+        confirmed = false;
+        notifyListeners();
+      });
+    } catch (e) {
+      debugPrint('Failed to start UDP listener: $e');
+    }
   }
 
   // Tick every second so the countdown in the card stays live

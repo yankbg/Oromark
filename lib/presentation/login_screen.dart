@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/core/theme/app_colors.dart';
+import 'package:oromark/data/models/auth_result.dart';
 
-class LoginScreen extends StatefulWidget {
+import '../providers/login_provider.dart';
+
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   int _selectedRole = 0;
   bool _obscurePassword = true;
@@ -48,23 +52,51 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading    = true;
       _errorMessage = null;
     });
+    try{
+      final id = _idController.text.trim();
+      final password = _passwordController.text;
 
-    await Future.delayed(const Duration(milliseconds: 1200));
-    if (!mounted) return;
-
-    setState(() => _isLoading = false);
-
-    final pwd = _passwordController.text;
-    final id = _idController.text.trim();
-    if (pwd == '1234') {
-      Navigator.of(context).pushReplacementNamed(
-        _selectedRole == 0 ? '/student/home' : '/lecturer/courses',
+      final result = await ref.read(loginControllerProvider.notifier).login(
+        studentId: _selectedRole == 0 ? id : null,
+        email: _selectedRole == 1 ? id : null,
+        password: password,
       );
-    } else {
-      setState(() =>
-      _errorMessage = 'Wrong password. Use 1234 for mock login.'
-      );
+      if (!mounted) return;
+
+      setState(() => _isLoading = false);
+
+      if (result is AuthResult) {
+        Navigator.of(context).pushReplacementNamed(
+          _selectedRole == 0 ? '/student/home' : '/lecturer/courses',
+          arguments: result,
+        );
+      }
+
+    }catch(e){
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
     }
+
+    // await Future.delayed(const Duration(milliseconds: 1200));
+    // if (!mounted) return;
+    //
+    // setState(() => _isLoading = false);
+    //
+    // final pwd = _passwordController.text;
+    // final id = _idController.text.trim();
+    // if (pwd == '1234') {
+    //   Navigator.of(context).pushReplacementNamed(
+    //     _selectedRole == 0 ? '/student/home' : '/lecturer/courses',
+    //   );
+    // } else {
+    //   setState(() =>
+    //   _errorMessage = 'Wrong password. Use 1234 for mock login.'
+    //   );
+    // }
   }
 
   @override
