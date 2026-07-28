@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:oromark/core/constants/network_constants.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 
 class UdpService {
   RawDatagramSocket? _socket;
@@ -21,28 +22,32 @@ class UdpService {
     if(_isListening) return;
     try{
       _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, NetworkConstants.udpPort);
+      _socket!.broadcastEnabled = true;
+      _socket!.readEventsEnabled = true;
       _isListening = true;
 
       _socket!.listen((event) {
-
+        print('[UDP_SERVICE] thi is event in listener ${event}');
         if(event == RawSocketEvent.read) {
           Datagram? dg = _socket!.receive();
+          print('[UDP_SERVICE] this is dg ${dg}');
           if(dg != null) {
             try{
               // Decode UDP packet
               String message = utf8.decode(dg.data);
               Map<String, dynamic> sessionData = jsonDecode(message);
               onSessionReceived(sessionData);
+              print('[UDP_SERVICE] session detected ${sessionData}');
             }catch(e){
-              print('Error parsing UDP packet: $e');
+              print('[UDP_SERVICE] Error parsing UDP packet: $e');
             }
           }
         }
 
       });
-      print('UDP listener started on port ${NetworkConstants.udpPort}');
+      print('[UDP_SERVICE] UDP listener started on port ${NetworkConstants.udpPort}');
     }catch(e){
-      print('Error starting UDP listener: $e');
+      print('[UDP_SERVICE] Error starting UDP listener: $e');
       _isListening = false;
       rethrow;
     }
@@ -80,19 +85,19 @@ class UdpService {
                 NetworkConstants.udpPort,
               );
             } catch (e) {
-              print('Error broadcasting UDP packet (late interval): $e');
+              print('[UDP_SERVICE] Error broadcasting UDP packet (late interval): $e');
             }
           },
         );
       }
 
       print(
-        'Switched to late broadcast interval: '
+        '[UDP_SERVICE] Switched to late broadcast interval: '
             '${NetworkConstants.broadcastIntervalPresent}s → ${NetworkConstants.broadcastIntervalLate}s '
             '(battery savings: ~80%)',
       );
     } catch (e) {
-      print('Error switching to late interval: $e');
+      print('[UDP_SERVICE] Error switching to late interval: $e');
     }
   }
 
@@ -103,10 +108,12 @@ class UdpService {
       _sessionData = sessionData;
       // Bind to any local IP (system chooses), OS picks random port
       _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      _socket!.broadcastEnabled = true;
 
       // Encode session data as JSON
       String message = jsonEncode(sessionData);
       List<int> data = utf8.encode(message);
+      final broadcastAddress = await getBroadcastAddress();
 
       // Start periodic broadcast at PRESENT interval
       // _currentInterval = NetworkConstants.broadcastIntervalPresent;
@@ -119,21 +126,21 @@ class UdpService {
           try {
             _socket!.send(
               data,
-              InternetAddress(NetworkConstants.broadcastAddress),
+              InternetAddress(broadcastAddress),
               NetworkConstants.udpPort,
             );
           } catch (e) {
-            print('Error broadcasting UDP packet: $e');
+            print('[UDP_SERVICE] Error broadcasting UDP packet: $e');
           }
         },
       );
       print(
-        'UDP broadcast started: interval ${_currentInterval}s, '
-            'address ${NetworkConstants.broadcastAddress}:${NetworkConstants.udpPort}',
+        '[UDP_SERVICE] UDP broadcast started: interval ${_currentInterval}s, '
+            'address $broadcastAddress:${NetworkConstants.udpPort}',
       );
 
     }catch(e){
-      print('Error starting UDP broadcast: $e');
+      print('[UDP_SERVICE] Error starting UDP broadcast: $e');
       _timer = null;
       rethrow;
     }
@@ -149,9 +156,9 @@ class UdpService {
       // _isListening = false;
       _currentInterval = NetworkConstants.broadcastIntervalPresent;
       _sessionData = null;
-      print('UDP broadcast stopped');
+      print('[UDP_SERVICE] UDP broadcast stopped');
     }catch(e){
-      print('Error stopping UDP broadcast: $e');
+      print('[UDP_SERVICE] Error stopping UDP broadcast: $e');
     }
   }
   void stopListening() {
@@ -160,9 +167,9 @@ class UdpService {
       _socket = null;
       _isListening = false;
 
-      print('UDP listener stopped');
+      print('[UDP_SERVICE] UDP listener stopped');
     } catch (e) {
-      print('Error stopping UDP listener: $e');
+      print('[UDP_SERVICE] Error stopping UDP listener: $e');
     }
   }
 
@@ -175,5 +182,14 @@ class UdpService {
   /// Returns current broadcast interval in seconds
   int get currentInterval => _currentInterval;
 
+  Future<String> getBroadcastAddress() async {
+    final info = NetworkInfo();
+    final broadcast = await info.getWifiBroadcast();
 
+    if (broadcast == null || broadcast.isEmpty) {
+      throw Exception('Could not get Wi-Fi broadcast address');
+    }
+
+    return broadcast;
+  }
 }

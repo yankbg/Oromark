@@ -1,96 +1,119 @@
 // lib/providers/session_discovery_provider.dart
 //
-// Riverpod provider that manages UDP session discovery.
-// Listens for broadcasts from lecturers' phones and exposes detected sessions.
+// Riverpod provider that listens to UDP broadcasts from lecturers
+// and exposes discovered sessions as a reactive stream.
+//
+// When session_discovery_screen.dart mounts, this provider automatically:
+// 1. Binds to UDP port (NetworkConstants.udpPort)
+// 2. Listens for incoming broadcasts
+// 3. Parses session JSON data
+// 4. Emits List<DetectedSession> whenever a new broadcast arrives
+// 5. Cleans up (stops listening) when screen unmounts
+//
+// Usage in widget:
+//   final discoveredSessionsAsync = ref.watch(discoveredSessionsProvider);
+//   discoveredSessionsAsync.when(
+//     loading: () => LoadingWidget(),
+//     data: (sessions) => ListView(...),
+//     error: (e, st) => ErrorWidget(),
+//   )
 
 import 'dart:async';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-import '../data/services/udp_service.dart';
-import '../presentation/student/home/student_home_controller.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oromark/core/constants/network_constants.dart';
+import 'package:oromark/presentation/student/home/student_home_controller.dart';
 
-part 'session_discovery_provider.g.dart';
+/// Provides the UDP service singleton for session discovery
+final sessionUdpServiceProvider = Provider<RawDatagramSocket?>((_) => null);
 
-/// Singleton UDP service for listening to broadcasts
-@riverpod
-UdpService udpService(UdpServiceRef ref) {
-  return UdpService();
-}
+/// Listens to UDP broadcasts from lecturers and emits discovered sessions
+///
+/// Flow:
+/// 1. Binds RawDatagramSocket to UDP_PORT
+/// 2. Listens for incoming datagrams
+/// 3. Parses JSON → DetectedSession
+/// 4. Maintains a Map<sessionId, DetectedSession>
+/// 5. Yields the full list whenever a new session arrives
+///
+/// The stream will:
+/// - Start with AsyncLoading (showing "Listening for broadcasts...")
+/// - Emit AsyncData<List<DetectedSession>> each time a broadcast is received
+/// - Emit AsyncError if socket binding fails
+///
+/// Sessions expire automatically (checked in UI via session.remaining)
+final discoveredSessionsProvider =
+StreamProvider<List<DetectedSession>>((ref) async* {
 
-/// Manages discovered sessions state
-@riverpod
-class SessionDiscoveryNotifier extends _$SessionDiscoveryNotifier {
-  @override
-  Future<List<DetectedSession>> build() async {
-    final udp = ref.watch(udpServiceProvider);
+  RawDatagramSocket? socket;
+  final sessions = <String, DetectedSession>{};
 
-    // Start listening when this provider is first accessed
-    _startListening(udp);
+  try {
+    // ── Bind to UDP port ─────────────────────────────────────────────────
+    socket = await RawDatagramSocket.bind(
+      InternetAddress.anyIPv4,
+      NetworkConstants.udpPort,
+    );
 
-    // Return empty list initially — will be updated via setState
-    return [];
-  }
+    print('[DiscoveryProvider] UDP listener started on port ${NetworkConstants.udpPort}');
 
-  final List<DetectedSession> _sessions = [];
+    // ── Listen for incoming broadcasts ────────────────────────────────────
+    await for (final event in socket) {
+      // RawSocketEvent.read means data is available
+      if (event == RawSocketEvent.read) {
+        final datagram = socket.receive();
 
-  Future<void> _startListening(UdpService udp) async {
-    try {
-      await udp.startListening((Map<String, dynamic> data) {
-        // Parse UDP broadcast payload
+        if (datagram == null) continue;
+
         try {
-          final session = DetectedSession(
-            sessionId: data['sessionId'] as String? ?? 'unknown',
-            courseCode: data['courseCode'] as String? ?? 'N/A',
-            courseName: data['courseName'] as String? ?? 'Unknown Course',
-            lecturerName: data['lecturerName'] as String? ?? 'Unknown Lecturer',
-            room: data['room'] as String? ?? 'TBA',
-            roomCode: data['roomCode'] as String? ?? 'XXXX',
-            presentCutoff: _parseDateTime(data['presentCutoff'] as String?),
-            lateCutoff: _parseDateTime(data['lateCutoff'] as String?),
-            lecturerIP: data['lecturerIP'] as String? ?? '0.0.0.0',
-            lecturerPort: (data['lecturerPort'] as int?) ?? 3000,
+          // ── Decode UDP packet ────────────────────────────────────────
+          final message = utf8.decode(datagram.data);
+          final sessionData = jsonDecode(message) as Map<String, dynamic>;
+
+          // ── Parse into DetectedSession ───────────────────────────────
+          final detected = DetectedSession(
+            sessionId: sessionData['sessionId'] as String,
+            courseCode: sessionData['courseCode'] as String,
+            courseName: sessionData['courseName'] as String,
+            lecturerName: sessionData['lecturerName'] as String,
+            room: sessionData['room'] as String,
+            roomCode: sessionData['roomCode'] as String, // [SENSITIVE] only shown to lecturer
+            presentCutoff: DateTime.now().add(
+              Duration(minutes: sessionData['presentMinutes'] as int),
+            ),
+            lateCutoff: DateTime.now().add(
+              Duration(minutes: sessionData['lateMinutes'] as int),
+            ),
+            lecturerIP: sessionData['lecturerIP'] as String,
+            lecturerPort: sessionData['lecturerPort'] as int,
           );
 
-          // Check if session already exists (by sessionId)
-          final exists = _sessions.any((s) => s.sessionId == session.sessionId);
-          if (!exists) {
-            _sessions.add(session);
-            state = AsyncValue.data(List.from(_sessions));
-          }
+          // ── Update sessions map & emit ───────────────────────────────
+          sessions[detected.sessionId] = detected;
+
+          // Yield the full current list of sessions
+          // Listeners will see all active sessions, sorted by remaining time
+          final sorted = sessions.values
+              .toList()
+            ..sort((a, b) => b.remaining.compareTo(a.remaining));
+
+          yield sorted;
+
+          print('[DiscoveryProvider] Broadcast received: ${detected.courseCode} '
+              'from ${detected.lecturerName} (code: ${detected.roomCode})');
         } catch (e) {
-          print('Error parsing UDP broadcast: $e');
+          print('[DiscoveryProvider] Error parsing UDP packet: $e');
+          // Continue listening; one bad packet shouldn't crash the stream
         }
-      });
-
-      print('UDP discovery listening started');
-    } catch (e) {
-      state = AsyncValue.error(e, StackTrace.current);
-      print('Error starting UDP listener: $e');
+      }
     }
+  } on SocketException catch (e) {
+    print('[DiscoveryProvider] Socket error: $e');
+    rethrow;
+  } finally {
+    // ── Cleanup when stream is cancelled ─────────────────────────────────
+    socket?.close();
+    print('[DiscoveryProvider] UDP listener stopped');
   }
-
-  DateTime _parseDateTime(String? iso8601) {
-    if (iso8601 == null) return DateTime.now();
-    try {
-      return DateTime.parse(iso8601);
-    } catch (_) {
-      return DateTime.now();
-    }
-  }
-
-  /// Stop listening when provider is disposed
-  void stopListening() {
-    ref.read(udpServiceProvider).stopListening();
-  }
-
-  /// Clear all discovered sessions
-  void clearSessions() {
-    _sessions.clear();
-    state = const AsyncValue.data([]);
-  }
-}
-
-/// Expose the discovered sessions
-@riverpod
-Future<List<DetectedSession>> discoveredSessions(DiscoveredSessionsRef ref) {
-  return ref.watch(sessionDiscoveryNotifierProvider.future);
-}
+});

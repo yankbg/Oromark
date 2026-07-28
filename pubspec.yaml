@@ -75,6 +75,8 @@ dependencies:
   flutter_foreground_task: ^6.0.0
   flutter_native_splash: ^2.4.0
 
+  network_info_plus: ^7.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

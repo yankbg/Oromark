@@ -1,46 +1,41 @@
-// lib/presentation/student/home/confirmation_screen.dart
+// lib/presentation/student/home/confirmation_screen.dart [UPDATED]
 //
-// UPDATED VERSION: Real HTTP submission to lecturer's server.
-// Handles network errors, timeouts, and displays appropriate feedback.
+// Student confirmation screen with room code validation.
+//
+// NEW BEHAVIOR:
+// 1. Room code input field (case-insensitive, max 6 chars)
+// 2. Validation: compare entered code with session.roomCode
+// 3. Error message if code is wrong
+// 4. Confirm button disabled until code is entered
+// 5. Success overlay after confirmation
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oromark/data/services/attendace_submission_service.dart';
 import '../../../core/theme/app_colors.dart';
-import 'student_home_controller.dart';
-import '../../../providers/app_database_provider.dart';
+import 'student_home_controller.dart'; // DetectedSession lives here
 
-
-class ConfirmationScreen extends ConsumerStatefulWidget {
+class ConfirmationScreen extends StatefulWidget {
   final DetectedSession session;
-  final String studentId;
-  final Future<String> Function({
-  required DetectedSession session,
-  required String studentId,
-  })? onSubmit;
-
-  const ConfirmationScreen({
-    super.key,
-    required this.session,
-    this.studentId = 'U-2023-8841', // [MOCK] — will be replaced with real auth
-    this.onSubmit,
-  });
+  const ConfirmationScreen({super.key, required this.session});
 
   @override
-  ConsumerState<ConfirmationScreen> createState() => _ConfirmationScreenState();
+  State<ConfirmationScreen> createState() => _ConfirmationScreenState();
 }
 
-class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
+class _ConfirmationScreenState extends State<ConfirmationScreen> {
+  late final TextEditingController _roomCodeController;
   bool _submitting = false;
   bool _confirmed = false;
-  String? _error;
-  String? _status; // PRESENT, LATE, ABSENT
+  String? _codeError; // Shows error message if code validation fails
 
   @override
   void initState() {
     super.initState();
+    _roomCodeController = TextEditingController();
+    _roomCodeController.addListener(() {
+      if (mounted) setState(() {});
+    });
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -49,81 +44,64 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
     );
   }
 
+  @override
+  void dispose() {
+    _roomCodeController.dispose();
+    super.dispose();
+  }
+
+  /// ✅ NEW: Validate the room code entered by the student
+  /// Returns true if code matches, false otherwise
+  bool _validateRoomCode() {
+    final enteredCode = _roomCodeController.text.trim().toUpperCase();
+    final actualCode = widget.session.roomCode.toUpperCase();
+
+    // Check if empty
+    if (enteredCode.isEmpty) {
+      setState(() => _codeError = 'Room code is required');
+      return false;
+    }
+
+    // Check if matches
+    if (enteredCode != actualCode) {
+      setState(() => _codeError = 'Incorrect room code. Try again.');
+      HapticFeedback.lightImpact(); // Haptic feedback for error
+      return false;
+    }
+
+    // ✅ Valid code
+    setState(() => _codeError = null);
+    return true;
+  }
+
   Future<void> _handleConfirm() async {
+    // ✅ First: Validate room code
+    if (!_validateRoomCode()) {
+      return; // Code is invalid, stop here
+    }
+
     HapticFeedback.mediumImpact();
     setState(() => _submitting = true);
 
-    try {
-      String status;
+    // TODO: Replace with actual submission via HTTP
+    // await ref.read(studentHomeControllerProvider.notifier).submitAttendance(
+    //   session: widget.session,
+    //   studentId: 'U-2023-8841', // [MOCK] replace with real from Supabase
+    // );
 
-      if (widget.onSubmit != null) {
-        // Use provided callback (for testing/custom behavior)
-        status = await widget.onSubmit!(
-          session: widget.session,
-          studentId: widget.studentId,
-        );
-      } else {
-        // Real HTTP submission to lecturer's server
-        status = await _submitToServer();
-      }
+    await Future.delayed(const Duration(milliseconds: 800));
 
-      if (!mounted) return;
+    if (!mounted) return;
+    HapticFeedback.heavyImpact();
+    setState(() {
+      _submitting = false;
+      _confirmed = true;
+    });
 
-      HapticFeedback.heavyImpact();
-      setState(() {
-        _submitting = false;
-        _confirmed = true;
-        _status = status;
-        _error = null;
-      });
-
-      // Auto-pop after success overlay shows
-      Future.delayed(const Duration(milliseconds: 2600), () {
-        if (mounted) Navigator.of(context).pop();
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      HapticFeedback.lightImpact();
-      setState(() {
-        _submitting = false;
-        _error = _formatErrorMessage(e);
-      });
-
-      print('[ConfirmationScreen] Error: $e');
-    }
-  }
-
-  /// Real HTTP submission to lecturer's server
-  Future<String> _submitToServer() async {
-    print('[ConfirmationScreen] Submitting to ${widget.session.lecturerIP}:${widget.session.lecturerPort}');
-
-    // TODO: Get database from Riverpod provider
-    final db = ref.read(appDatabaseProvider);
-    final service = AttendanceSubmissionService(db);
-
-    final status = await service.submitAttendance(
-      session: widget.session,
-      studentId: widget.studentId,
-    );
-
-    return status;
-  }
-
-  String _formatErrorMessage(dynamic error) {
-    if (error is TimeoutException) {
-      return 'Connection timeout. Check WiFi and try again.';
-    } else if (error is NetworkException) {
-      return error.message;
-    } else if (error is BadRequestException) {
-      return error.message;
-    } else if (error is DuplicateSubmissionException) {
-      return 'Already submitted. No duplicate entries allowed.';
-    } else if (error is NotFoundException) {
-      return 'Session not found. Try again.';
-    } else {
-      return error.toString();
-    }
+    // Auto-pop after the success overlay shows
+    Future.delayed(const Duration(milliseconds: 2600), () {
+      if (mounted) Navigator.of(context).pop();
+    });
   }
 
   void _handleCancel() {
@@ -155,11 +133,53 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
                       padding: const EdgeInsets.fromLTRB(24, 40, 24, 40),
                       child: Column(
                         children: [
-                          // ── Session card ──────────────────────────────────
+                          // ── Session card ──────────────────────────────
                           _SessionCard(session: widget.session),
                           const SizedBox(height: 36),
 
-                          // ── Question prompt ───────────────────────────────
+                          // ✅ NEW: Room code input field with validation
+                          _RoomCodeInput(
+                            controller: _roomCodeController,
+                            error: _codeError,
+                            enabled: !_submitting && !_confirmed,
+                            onSubmitted: _handleConfirm,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // ── Information hint about room code ──────────
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.bgTertiary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(
+                                  Icons.info_outline_rounded,
+                                  size: 14,
+                                  color: AppColors.textSecondary,
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Check the board or ask your lecturer for the room code.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 36),
+
+                          // ── Question prompt ───────────────────────────
                           Text(
                             'Are you physically present\nin this lecture hall?',
                             textAlign: TextAlign.center,
@@ -182,47 +202,15 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          // ── Error message ─────────────────────────────────
-                          if (_error != null) ...[
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.error,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: AppColors.error.withOpacity(0.4),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.error_outline_rounded,
-                                    color: AppColors.error,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      _error!,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.error,
-                                        height: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-
-                          // ── Confirm button ────────────────────────────────
+                          // ── Confirm button ────────────────────────────
+                          // [UPDATED] Only enabled if room code is filled
                           SizedBox(
                             width: double.infinity,
                             height: 54,
                             child: ElevatedButton.icon(
-                              onPressed: (_submitting || _confirmed)
+                              onPressed: (_submitting ||
+                                  _confirmed ||
+                                  _roomCodeController.text.trim().isEmpty)
                                   ? null
                                   : _handleConfirm,
                               icon: _submitting
@@ -251,7 +239,7 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // ── Cancel button ─────────────────────────────────
+                          // ── Cancel button ─────────────────────────────
                           SizedBox(
                             width: double.infinity,
                             height: 54,
@@ -290,11 +278,8 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
               ),
 
               // ── Success overlay ───────────────────────────────────────────
-              if (_confirmed && _status != null)
-                _SuccessOverlay(
-                  isLate: widget.session.isLate,
-                  status: _status!,
-                ),
+              if (_confirmed)
+                _SuccessOverlay(isLate: widget.session.isLate),
             ],
           ),
         ),
@@ -331,7 +316,7 @@ class _AppBar extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 48),
+          const SizedBox(width: 48), // balance the back button
         ],
       ),
     );
@@ -339,7 +324,112 @@ class _AppBar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Session card (same as before)
+// ✅ NEW: Room code input widget
+// ─────────────────────────────────────────────────────────────────────────────
+class _RoomCodeInput extends StatelessWidget {
+  final TextEditingController controller;
+  final String? error;
+  final bool enabled;
+  final VoidCallback onSubmitted;
+
+  const _RoomCodeInput({
+    required this.controller,
+    required this.error,
+    required this.enabled,
+    required this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 12,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.bgSecondary,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: error != null ? AppColors.error : const Color(0xFFE2E8E4),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Label
+          Text(
+            'Room Code',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Input field
+          TextField(
+            controller: controller,
+            enabled: enabled,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => onSubmitted(),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+              LengthLimitingTextInputFormatter(6),
+            ],
+            textCapitalization: TextCapitalization.characters,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              letterSpacing: 2.0,
+            ),
+            decoration: InputDecoration(
+              hintText: '_ _ _ _ _ _',
+              hintStyle: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 18,
+                letterSpacing: 2.0,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+
+          // Error message
+          if (error != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 14,
+                  color: AppColors.error,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    error!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Session card
 // ─────────────────────────────────────────────────────────────────────────────
 class _SessionCard extends StatelessWidget {
   final DetectedSession session;
@@ -347,58 +437,94 @@ class _SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLate = session.isLate;
+
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.bgSecondary,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFE2E8E4)),
       ),
-      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            session.courseCode,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
-              letterSpacing: 0.5,
-            ),
+          // ── Top row: course code + status badge ──────────────
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.courseCode,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      session.courseName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isLate ? AppColors.lateBg : AppColors.bgPrimary,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isLate ? '⏱  LATE' : '✓  PRESENT',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isLate ? AppColors.lateText : AppColors.success,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            session.courseName,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
+
           const SizedBox(height: 16),
-          _DetailCell(
-            icon: Icons.person_rounded,
-            label: 'Lecturer',
-            value: session.lecturerName,
+
+          // ── Details: lecturer + room ──────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: _DetailCell(
+                  icon: Icons.person_rounded,
+                  label: 'Lecturer',
+                  value: session.lecturerName,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _DetailCell(
+                  icon: Icons.location_on_rounded,
+                  label: 'Room',
+                  value: session.room,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          _DetailCell(
-            icon: Icons.location_on_rounded,
-            label: 'Room',
-            value: session.room,
-          ),
-          const SizedBox(height: 12),
-          _DetailCell(
-            icon: Icons.vpn_key_rounded,
-            label: 'Room Code',
-            value: session.roomCode,
-          ),
+
+          // ── Remaining time bar ─────────────────────────────
           const SizedBox(height: 16),
           _RemainingBar(session: session),
         ],
@@ -435,23 +561,15 @@ class _DetailCell extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary)),
               const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary)),
             ],
           ),
         ),
@@ -460,6 +578,7 @@ class _DetailCell extends StatelessWidget {
   }
 }
 
+// Thin time-remaining progress bar inside the card
 class _RemainingBar extends StatelessWidget {
   final DetectedSession session;
   const _RemainingBar({required this.session});
@@ -467,8 +586,12 @@ class _RemainingBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remaining = session.remaining;
-    final isLate = session.isLate;
-    final color = isLate ? AppColors.warning : AppColors.success;
+    final total = session.isLate
+        ? session.lateCutoff.difference(session.presentCutoff)
+        : session.presentCutoff.difference(
+        session.presentCutoff.subtract(const Duration(minutes: 20)));
+    final progress = (remaining.inSeconds / total.inSeconds).clamp(0.0, 1.0);
+    final color = session.isLate ? AppColors.warning : AppColors.success;
 
     final m = remaining.inMinutes;
     final s = remaining.inSeconds % 60;
@@ -480,8 +603,9 @@ class _RemainingBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              isLate ? 'Late window closes in' : 'Present window closes in',
-              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              'Window closes in',
+              style: const TextStyle(
+                  fontSize: 11, color: AppColors.textSecondary),
             ),
             Text(
               '$m:${s.toString().padLeft(2, '0')}',
@@ -497,9 +621,7 @@ class _RemainingBar extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(99),
           child: LinearProgressIndicator(
-            value: remaining.inSeconds > 0
-                ? (remaining.inSeconds / (20 * 60)).clamp(0.0, 1.0)
-                : 0.0,
+            value: progress,
             minHeight: 5,
             backgroundColor: AppColors.bgTertiary,
             valueColor: AlwaysStoppedAnimation(color),
@@ -515,9 +637,7 @@ class _RemainingBar extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _SuccessOverlay extends StatefulWidget {
   final bool isLate;
-  final String status;
-
-  const _SuccessOverlay({required this.isLate, required this.status});
+  const _SuccessOverlay({required this.isLate});
 
   @override
   State<_SuccessOverlay> createState() => _SuccessOverlayState();
@@ -546,8 +666,6 @@ class _SuccessOverlayState extends State<_SuccessOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final statusText = widget.status == 'LATE' ? '⏱ LATE' : '✓ PRESENT';
-
     return FadeTransition(
       opacity: _fade,
       child: Container(
@@ -556,6 +674,7 @@ class _SuccessOverlayState extends State<_SuccessOverlay>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Elastic bounce checkmark orb
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0.5, end: 1.0),
                 duration: const Duration(milliseconds: 550),
@@ -597,13 +716,14 @@ class _SuccessOverlayState extends State<_SuccessOverlay>
               ),
               const SizedBox(height: 24),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 22, vertical: 9),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
-                  statusText,
+                  widget.isLate ? '⏱  LATE' : '✓  PRESENT',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,

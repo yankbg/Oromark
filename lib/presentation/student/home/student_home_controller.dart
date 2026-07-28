@@ -1,10 +1,11 @@
-// lib/presentation/student/home/student_home_controller.dart
+// lib/presentation/student/home/student_home_controller.dart [UPDATED]
 //
 // Owns every piece of mutable state for the student home screen.
 // The screen itself (student_home_screen.dart) only calls methods and reads
 // the exposed fields — no logic lives there.
 //
-// [MOCK] tags mark places a real UdpService / Riverpod provider will replace.
+// [UPDATED] Removed _startListening() — the Riverpod provider handles UDP now
+// This controller focuses on UI state (selected session, navigation, submission)
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -51,6 +52,7 @@ class DetectedSession {
   }
 
   bool get isExpired => DateTime.now().isAfter(lateCutoff);
+
   @override
   String toString() => '$courseCode by $lecturerName ($roomCode)';
 }
@@ -60,12 +62,15 @@ class StudentHomeController extends ChangeNotifier {
   StudentHomeController({
     required TickerProvider vsync,
     required UdpService udpService,
-    AppDatabase? database,}): _db = database,
+    AppDatabase? database,
+  }) : _db = database,
         _udpService = udpService {
     _initAnimations(vsync);
-    _startListening(); // [MOCK] — replace with udpService.startListening()
+    // ✅ [UPDATED] Removed _startListening()
+    // The discoveredSessionsProvider in lib/providers/ handles UDP listening now
     _startCountdownTicker();
   }
+
   final AppDatabase? _db;
   final UdpService _udpService;
 
@@ -103,55 +108,15 @@ class StudentHomeController extends ChangeNotifier {
     });
   }
 
-  // ── [MOCK] Simulates receiving a UDP broadcast after 2 s ──────────────────
-  // void _startMockSession() {
-  //   Future.delayed(const Duration(seconds: 2), () {
-  //     final now = DateTime.now();
-  //     session = DetectedSession(
-  //       sessionId: 'mock-uuid-001',
-  //       courseCode: 'CS301',
-  //       courseName: 'Software Engineering',
-  //       lecturerName: 'Dr. Henderson',
-  //       room: 'A204',
-  //       roomCode: 'ALPHA7',
-  //       presentCutoff: now.add(const Duration(minutes: 8, seconds: 45)),
-  //       lateCutoff: now.add(const Duration(minutes: 18, seconds: 45)),
-  //       lecturerIP: '0.0.0.0',
-  //       lecturerPort: 3000
-  //     );
-  //     notifyListeners();
-  //   });
-  // }
-  Future<void> _startListening() async {
-    try {
-      await _udpService.startListening((sessionData) {
-        final data = sessionData;
+  // ✅ [REMOVED] _startListening() method
+  // The provider (discoveredSessionsProvider) handles UDP broadcast listening
+  // instead. This keeps the controller focused on UI state, not networking.
 
-        final detected = DetectedSession(
-          sessionId: data['sessionId'] as String,
-          courseCode: data['courseCode'] as String,
-          courseName: data['courseName'] as String,
-          lecturerName: data['lecturerName'] as String,
-          room: data['room'] as String,
-          roomCode: data['roomCode'] as String,
-          presentCutoff: DateTime.now().add(
-            Duration(minutes: data['presentMinutes'] as int),
-          ),
-          lateCutoff: DateTime.now().add(
-            Duration(minutes: data['lateMinutes'] as int),
-          ),
-          lecturerIP: data['lecturerIP'] as String,
-          lecturerPort: data['lecturerPort'] as int,
-        );
-
-        session = detected;
-        confirmed = false;
-        notifyListeners();
-      });
-    } catch (e) {
-      debugPrint('Failed to start UDP listener: $e');
-    }
-  }
+  // When student_home_screen.dart opens the discovery sheet via:
+  //   showModalBottomSheet(builder: (_) => SessionDiscoverySheet(...))
+  // The sheet's _SessionList calls:
+  //   final discoveredSessionsAsync = ref.watch(discoveredSessionsProvider);
+  // This automatically starts the UDP listener via Riverpod's lifecycle management
 
   // Tick every second so the countdown in the card stays live
   void _startCountdownTicker() {

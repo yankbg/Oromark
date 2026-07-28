@@ -1,8 +1,8 @@
-// lib/presentation/lecturer/courses/course_list_screen.dart
+// lib/presentation/lecturer/courses/course_list_screen.dart [FIXED]
 //
-// The lecturer's home screen — shows all their enrolled courses.
-// Reads state from CourseController (Riverpod StateNotifier).
-// CourseCard is a separate widget in course_card.dart per the brief's structure.
+// [FIXED] Corrected type issues:
+// - state now accepts CourseListState (not List<CourseModel>)
+// - onRefresh now returns Future<void> (RefreshCallback signature)
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +11,8 @@ import 'package:oromark/data/models/course_model.dart';
 import 'package:oromark/presentation/lecturer/courses/course_detail_screen.dart';
 import 'package:oromark/presentation/lecturer/session/select_course_screen.dart';
 import 'package:oromark/presentation/lecturer/session/start_session_sheet.dart';
+import 'package:oromark/providers/auth_state_provider.dart';
+import 'package:oromark/data/models/auth_result.dart';
 import '../../../core/theme/app_colors.dart';
 import 'course_card.dart';
 import 'course_controller.dart';
@@ -41,14 +43,6 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
 
   // ── Session start ───────────────────────────────────────────────────────
 
-  // void _startSession(String courseCode, String courseName) {
-  //   // TODO: ref.read(sessionNotifierProvider.notifier)
-  //   //           .startSession(courseCode, courseName);
-  //   //       Navigator.pushNamed(context, '/lecturer/session');
-  //   Navigator.of(context).push(
-  //     MaterialPageRoute(builder: (_) =>  StartSessionSheet()),
-  //   );
-  // }
   void _startSession(String courseCode, String courseName) {
     // Find the full CourseModel so the sheet can pre-select it
     final courses = ref.read(courseControllerProvider).courses;
@@ -65,8 +59,6 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
   // ── View details ────────────────────────────────────────────────────────
 
   void _viewDetails(CourseModel course) {
-    // TODO: Navigator.pushNamed(context, '/lecturer/reports',
-    //           arguments: courseCode);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CourseDetailScreen(course: course),
@@ -82,14 +74,19 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
       statusBarIconBrightness: Brightness.dark,
     ));
 
+    //  courseState is now CourseListState (not List)
     final courseState = ref.watch(courseControllerProvider);
+    //  Watch auth state to get lecturer's name
+    final authState = ref.watch(authStateNotifierProvider);
 
     return Scaffold(
       backgroundColor: AppColors.bgSecondary,
       body: Column(
         children: [
+          //  Pass auth state to top bar
           _TopBar(
             searchController: _searchController,
+            authState: authState,
             onSearchChanged: (query) {
               ref.read(courseControllerProvider.notifier).updateSearch(query);
             },
@@ -100,8 +97,12 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
           ),
           Expanded(
             child: _CourseBody(
+              //  Pass entire CourseListState, not just List
               state:          courseState,
-              onRefresh:      () => ref.read(courseControllerProvider.notifier).loadCourses(),
+              authState:      authState,
+              //  onRefresh must return Future<void> (RefreshCallback)
+              onRefresh:      () async =>
+              await ref.read(courseControllerProvider.notifier).loadCourses(),
               onStartSession: _startSession,
               onViewDetails:  _viewDetails,
             ),
@@ -120,14 +121,25 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
 
 class _TopBar extends StatelessWidget {
   final TextEditingController searchController;
+  final AsyncValue<AuthResult?> authState;
   final ValueChanged<String>  onSearchChanged;
   final VoidCallback          onClearSearch;
 
   const _TopBar({
     required this.searchController,
+    required this.authState,
     required this.onSearchChanged,
     required this.onClearSearch,
   });
+
+  //  Helper to get initials from lecturer name
+  String _getInitials(String fullname) {
+    final parts = fullname.split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+    }
+    return fullname.substring(0, 2).toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -174,20 +186,52 @@ class _TopBar extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  // Avatar / profile
+
+                  //  Dynamic avatar with initials from logged-in lecturer
                   GestureDetector(
                     onTap: () {},
-                    child: CircleAvatar(
-                      radius:          18,
-                      backgroundColor: AppColors.primary.withOpacity(0.12),
-                      child: const Text(
-                        'DN',
-                        style: TextStyle(
-                          fontFamily:  'Inter',
-                          fontSize:    12,
-                          fontWeight:  FontWeight.w700,
-                          color:       AppColors.primary,
+                    child: authState.when(
+                      data: (authResult) {
+                        if (authResult == null) {
+                          // No user logged in
+                          return CircleAvatar(
+                            radius: 18,
+                            backgroundColor: AppColors.primary.withOpacity(0.12),
+                            child: const Icon(Icons.person_rounded, size: 18),
+                          );
+                        }
+
+                        // Show initials from lecturer's actual name
+                        final initials = _getInitials(authResult.fullname);
+                        return CircleAvatar(
+                          radius: 18,
+                          backgroundColor: AppColors.primary.withOpacity(0.12),
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              fontFamily:  'Inter',
+                              fontSize:    12,
+                              fontWeight:  FontWeight.w700,
+                              color:       AppColors.primary,
+                            ),
+                          ),
+                        );
+                      },
+                      loading: () => CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.primary.withOpacity(0.12),
+                        child: const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                          ),
                         ),
+                      ),
+                      error: (e, st) => CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.error.withOpacity(0.12),
+                        child: const Icon(Icons.error_rounded, size: 18),
                       ),
                     ),
                   ),
@@ -230,24 +274,22 @@ class _TopBar extends StatelessWidget {
                     ),
                   )
                       : null,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical:   10,
-                  ),
+                  contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide:  const BorderSide(color: Color(0xFFE5E7EB)),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                        color: Color(0xFFE5E7EB), width: 1),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide:  const BorderSide(color: Color(0xFFE5E7EB)),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                        color: Color(0xFFE5E7EB), width: 1),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide:  const BorderSide(
-                      color: AppColors.primary,
-                      width: 2,
-                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                        color: AppColors.primary, width: 1.5),
                   ),
                 ),
               ),
@@ -259,16 +301,20 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-// ── Body ──────────────────────────────────────────────────────────────────────
+// ── Course body ────────────────────────────────────────────────────────────────
 
 class _CourseBody extends StatelessWidget {
+  //  state is CourseListState (not List<CourseModel>)
   final CourseListState state;
+  final AsyncValue<AuthResult?> authState;
+  // onRefresh signature is Future<void> Function() (RefreshCallback)
   final Future<void> Function() onRefresh;
-  final void Function(String code, String name) onStartSession;
-  final void Function(CourseModel course)              onViewDetails;
+  final Function(String, String) onStartSession;
+  final Function(CourseModel) onViewDetails;
 
   const _CourseBody({
     required this.state,
+    required this.authState,
     required this.onRefresh,
     required this.onStartSession,
     required this.onViewDetails,
@@ -276,70 +322,30 @@ class _CourseBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ── Loading ────────────────────────────────────────────────────────
-    if (state.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.primary,
-          strokeWidth: 2.5,
-        ),
-      );
-    }
+    //  Access filtered courses from state
+    final courses = state.filtered;
+    final isLoading = state.isLoading;
 
-    // ── Error ──────────────────────────────────────────────────────────
-    if (state.error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
+    if (courses.isEmpty && !isLoading) {
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        child: const Center(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.wifi_off_rounded,
+              Icon(Icons.search_off_rounded,
                   size: 48, color: AppColors.textTertiary),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
-                state.error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
+                'No courses match your search',
+                style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize:   14,
                   color:      AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: onRefresh,
-                child: const Text(
-                  'Retry',
-                  style: TextStyle(color: AppColors.primary),
-                ),
-              ),
             ],
           ),
-        ),
-      );
-    }
-
-    final courses = state.filtered;
-
-    // ── Empty (no search match) ────────────────────────────────────────
-    if (courses.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.search_off_rounded,
-                size: 48, color: AppColors.textTertiary),
-            const SizedBox(height: 12),
-            const Text(
-              'No courses match your search',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize:   14,
-                color:      AppColors.textSecondary,
-              ),
-            ),
-          ],
         ),
       );
     }
@@ -352,8 +358,11 @@ class _CourseBody extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
         children: [
 
-          // Welcome / greeting
-          _WelcomeHeader(courseCount: courses.length),
+          //  Welcome header with actual lecturer name
+          _WelcomeHeader(
+            courseCount: courses.length,
+            authState: authState,
+          ),
           const SizedBox(height: 20),
 
           // Section label
@@ -406,7 +415,12 @@ class _CourseBody extends StatelessWidget {
 
 class _WelcomeHeader extends StatelessWidget {
   final int courseCount;
-  const _WelcomeHeader({required this.courseCount});
+  final AsyncValue<AuthResult?> authState;
+
+  const _WelcomeHeader({
+    required this.courseCount,
+    required this.authState,
+  });
 
   static String _greeting() {
     final hour = DateTime.now().hour;
@@ -429,14 +443,40 @@ class _WelcomeHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${_greeting()}, Dr. Nzabanita',
-          style: const TextStyle(
-            fontFamily:  'Inter',
-            fontSize:    22,
-            fontWeight:  FontWeight.w700,
-            color:       AppColors.textPrimary,
-            height:      1.2,
+        //  Show actual lecturer name from auth state
+        authState.when(
+          data: (authResult) {
+            final lecturerName = authResult?.fullname ?? 'Guest';
+            return Text(
+              '${_greeting()}, $lecturerName',
+              style: const TextStyle(
+                fontFamily:  'Inter',
+                fontSize:    22,
+                fontWeight:  FontWeight.w700,
+                color:       AppColors.textPrimary,
+                height:      1.2,
+              ),
+            );
+          },
+          loading: () => Text(
+            '${_greeting()}...',
+            style: const TextStyle(
+              fontFamily:  'Inter',
+              fontSize:    22,
+              fontWeight:  FontWeight.w700,
+              color:       AppColors.textSecondary,
+              height:      1.2,
+            ),
+          ),
+          error: (e, st) => Text(
+            '${_greeting()}, User',
+            style: const TextStyle(
+              fontFamily:  'Inter',
+              fontSize:    22,
+              fontWeight:  FontWeight.w700,
+              color:       AppColors.textPrimary,
+              height:      1.2,
+            ),
           ),
         ),
         const SizedBox(height: 6),

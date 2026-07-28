@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/providers/app_database_provider.dart';
   import '../../../core/theme/app_colors.dart';
   import '../../../providers/session_discovery_provider.dart';
+  import '../../../providers/udp_service_provider.dart';
 import 'student_home_controller.dart';
   import 'session_card.dart';
   import 'confirmation_screen.dart';
@@ -43,10 +44,41 @@ import 'student_home_controller.dart';
         udpService: udpService,
         database: db,
       )..addListener(() => setState(() {}));
+      udpService.startListening((sessionData) {
+        print('[UDP_SERVICE] session received: $sessionData');
+        print('[UDP_SERVICE] raw packet: $sessionData');
+        print('[UDP_SERVICE] keys: ${sessionData.keys.toList()}');
+
+        try {
+          final startTime = DateTime.parse(sessionData['startTime'] as String);
+          final endTime = DateTime.parse(sessionData['endTime'] as String);
+
+          final detected = DetectedSession(
+            sessionId: sessionData['sessionId'] as String,
+            courseCode: sessionData['courseCode'] as String,
+            courseName: sessionData['courseName'] as String,
+            lecturerName: 'Lecturer',
+            room: sessionData['roomCode'] as String,
+            roomCode: sessionData['roomCode'] as String,
+            presentCutoff: startTime,
+            lateCutoff: endTime,
+            lecturerIP: sessionData['lecturerIP'] as String,
+            lecturerPort: sessionData['lecturerPort'] as int,
+          );
+
+          if (mounted) {
+            _controller.selectSession(detected);
+          }
+        } catch (e) {
+          print('[UDP_SERVICE] error building detected session: $e');
+        }
+      });
     }
 
     @override
     void dispose() {
+      final udpService = ref.read(udpServiceProvider);
+      udpService.stopListening();
       _controller.dispose();
       super.dispose();
     }

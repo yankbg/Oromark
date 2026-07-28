@@ -1,8 +1,11 @@
-// lib/presentation/student/home/session_discovery_screen.dart
+// lib/presentation/student/home/session_discovery_screen.dart [UPDATED]
 //
 // Modal sheet that displays available session broadcasts.
 // Student can view sessions and tap one to join.
 // Uses Riverpod to listen for UDP broadcasts in real-time.
+//
+// [UPDATED] Room code is NO LONGER shown here — only on confirmation screen
+// This prevents students from seeing the code before they're physically present
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,10 +24,6 @@ class SessionDiscoverySheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // [MOCK] — Will be replaced with:
-    // final discoveredSessions = ref.watch(discoveredSessionsProvider);
-
-    // For now, use the mock sessions from controller
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.bgPrimary,
@@ -123,40 +122,8 @@ class _SessionList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ✅ FIXED: Now watches the actual provider
     final discoveredSessionsAsync = ref.watch(discoveredSessionsProvider);
-    // [MOCK] For testing, return 2 mock sessions
-    // After UDP is integrated, this will come from Riverpod provider
-
-    // final mockSessions = [
-    //   DetectedSession(
-    //     sessionId: 'mock-uuid-001',
-    //     courseCode: 'CS301',
-    //     courseName: 'Software Engineering',
-    //     lecturerName: 'Dr. John Doe',
-    //     room: 'A204',
-    //     roomCode: 'A3K9',
-    //     presentCutoff: DateTime.now().add(const Duration(minutes: 8)),
-    //     lateCutoff: DateTime.now().add(const Duration(minutes: 18)),
-    //     lecturerIP: '192.168.1.100', // [MOCK]
-    //     lecturerPort: 3000,
-    //   ),
-    //   DetectedSession(
-    //     sessionId: 'mock-uuid-002',
-    //     courseCode: 'CS202',
-    //     courseName: 'Data Structures',
-    //     lecturerName: 'Dr. Sarah Smith',
-    //     room: 'B105',
-    //     roomCode: 'B2M7',
-    //     presentCutoff: DateTime.now().add(const Duration(minutes: 12)),
-    //     lateCutoff: DateTime.now().add(const Duration(minutes: 22)),
-    //     lecturerIP: '192.168.1.101', // [MOCK]
-    //     lecturerPort: 3000,
-    //   ),
-    // ];
-    //
-    // if (mockSessions.isEmpty) {
-    //   return _EmptyState();
-    // }
 
     return discoveredSessionsAsync.when(
       // ✅ Loading state: Show spinner
@@ -213,7 +180,7 @@ class _SessionList extends ConsumerWidget {
               ),
               child: const Icon(
                 Icons.error_outline_rounded,
-                color: AppColors.error,
+                color: Colors.white,
                 size: 40,
               ),
             ),
@@ -247,6 +214,8 @@ class _SessionList extends ConsumerWidget {
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -257,13 +226,13 @@ class _EmptyState extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: AppColors.bgSecondary,
+              color: AppColors.bgTertiary,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.sensors_off_rounded,
-              color: AppColors.textSecondary,
+            child: Icon(
+              Icons.no_cell_rounded,
               size: 40,
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 16),
@@ -374,7 +343,7 @@ class _SessionTile extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: isLate ? AppColors.warning : AppColors.bgPrimary,
+                        color: isLate ? AppColors.lateBg : AppColors.bgPrimary,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -382,7 +351,7 @@ class _SessionTile extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: isLate ? AppColors.warning : AppColors.success,
+                          color: isLate ? AppColors.lateText : AppColors.success,
                           letterSpacing: 0.3,
                         ),
                       ),
@@ -413,7 +382,8 @@ class _SessionTile extends StatelessWidget {
 
                 const SizedBox(height: 10),
 
-                // ── Room code display ──────────────────────────
+                // ✅ [UPDATED] Removed room code display
+                // Instead, show a hint about the confirmation screen
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -426,21 +396,22 @@ class _SessionTile extends StatelessWidget {
                   child: Row(
                     children: [
                       const Icon(
-                        Icons.vpn_key_rounded,
+                        Icons.info_outline_rounded,
                         size: 14,
                         color: AppColors.textSecondary,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        'Code: ${session.roomCode}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                          letterSpacing: 0.5,
+                      const Expanded(
+                        child: Text(
+                          'You\'ll need to enter the room code on the next screen',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       Text(
                         _formatRemaining(session.remaining),
                         style: TextStyle(

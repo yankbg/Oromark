@@ -36,6 +36,7 @@ class StartSessionSheet {
       isScrollControlled: true,
       backgroundColor:    Colors.transparent,
       builder: (_) => _StartSessionSheet(
+        ref:         ref,
         preSelected: preSelected,
       ),
     );
@@ -88,8 +89,9 @@ const _kDurations = ['4 hours', '3 hours', '2 hours'];
 // ── Sheet widget ──────────────────────────────────────────────────────────────
 
 class _StartSessionSheet extends ConsumerStatefulWidget {
+  final WidgetRef    ref;
   final CourseModel? preSelected;
-  const _StartSessionSheet({ this.preSelected});
+  const _StartSessionSheet({required this.ref, this.preSelected});
 
   @override
   ConsumerState<_StartSessionSheet> createState() => _StartSessionSheetState();
@@ -140,33 +142,71 @@ class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
     if (_selected == null) return;
     HapticFeedback.mediumImpact();
     setState(() => _isStarting = true);
+    try{
+      // Map the dropdown index to a real Duration
+      final duration = switch (_durationIdx) {
+        0 => const Duration(hours: 1),
+        1 => const Duration(minutes: 90),
+        2 => const Duration(hours: 2),
+        _ => const Duration(hours: 1),
+      };
+      final room = _roomCtrl.text.trim().isEmpty ? generateRoomCode() : _roomCtrl.text.trim();
 
-    // Map the dropdown index to a real Duration
-    final duration = switch (_durationIdx) {
-      0 => const Duration(hours: 1),
-      1 => const Duration(minutes: 90),
-      2 => const Duration(hours: 2),
-      _ => const Duration(hours: 1),
-    };
-    final room = _roomCtrl.text.trim().isEmpty ? roomCode : _roomCtrl.text.trim();
+      print('[UDP_SERVICE] --- START SESSION ---');
+      print('[UDP_SERVICE] Course: ${_selected!.courseCode} - ${_selected!.courseName}');
+      print('[UDP_SERVICE] Room: $room');
+      print('[UDP_SERVICE] Duration: $duration');
+      print('[UDP_SERVICE] Selected course model: ${_selected!.toString()}');
+      // This starts:
+      //   1. UDP broadcast (students can discover)
+      //   2. HTTP server (students can submit attendance)
+      //   3. Database session record
+      await widget.ref
+          .read(sessionNotifierProvider.notifier)
+          .startSession(
+        _selected!.courseCode,
+        _selected!.courseName,
+        roomCode: room,
+      );
+      if (!mounted) return;
+
+      HapticFeedback.heavyImpact();
+      print('Session started! UDP broadcast should be active now.');
+
+      Navigator.of(context).pop();
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) =>  ActiveSessionScreen(
+          course: _selected!,   // full CourseModel from list/detail
+          duration: duration,
+          room: room,
+        )),
+      );
+    }catch(e){
+      if (!mounted) return;
+
+      setState(() => _isStarting = false);
+      HapticFeedback.lightImpact();
+
+      print('Failed to start session: $e');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to start session: $e'),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+
+
+
 
     // [MOCK] — replace with sessionNotifier.startSession()
     // await Future.delayed(const Duration(milliseconds: 900));
     // await ref.read(sessionNotifierProvider.notifier)
     // .startSession(_selected!.courseCode, _selected!.courseName);
-    await Future.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
+    // await Future.delayed(const Duration(milliseconds: 900));
 
-    HapticFeedback.heavyImpact();
-
-    Navigator.of(context).pop();
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) =>  ActiveSessionScreen(
-        course: _selected!,   // full CourseModel from list/detail
-        duration: duration,
-        room: room,
-      )),
-    );
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/core/theme/app_colors.dart';
 import 'package:oromark/data/models/auth_result.dart';
+import 'package:oromark/providers/auth_state_provider.dart';
 
 import '../providers/login_provider.dart';
 
@@ -66,6 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() => _isLoading = false);
 
       if (result is AuthResult) {
+        ref.read(authStateNotifierProvider.notifier).setUser(result);
         Navigator.of(context).pushReplacementNamed(
           _selectedRole == 0 ? '/student/home' : '/lecturer/courses',
           arguments: result,

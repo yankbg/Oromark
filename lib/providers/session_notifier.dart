@@ -29,8 +29,8 @@
     ///
     /// Throws: Exception if WiFi not connected
   
-    Future<void> startSession(String courseCode, String courseName) async {
-      final roomCode = generateRoomCode();
+    Future<void> startSession(String courseCode, String courseName, {required String roomCode}) async {
+      // final roomCode = roomCode;
       final sessionId = const Uuid().v4();
       final now = DateTime.now();
   
@@ -77,8 +77,7 @@
           presentCutoff: presentCutoff,
           lateCutoff: lateCutoff,
         );
-        // Start UDP broadcast (students auto-discover)
-        await ref.read(udpServiceProvider).startBroadcasting({
+        final payload = {
           'sessionId': sessionId,
           'courseCode': courseCode,
           'courseName': courseName,
@@ -87,7 +86,12 @@
           'lecturerPort': NetworkConstants.httpPort,
           'startTime': now.toIso8601String(),
           'endTime': lateCutoff.toIso8601String(),
-        });
+        };
+        print('[LECTURER] broadcast payload: $payload');
+        print('[LECTURER] payload keys: ${payload.keys.toList()}');
+        print('[LECTURER] port: ${NetworkConstants.udpPort}');
+        // Start UDP broadcast (students auto-discover)
+        await ref.read(udpServiceProvider).startBroadcasting(payload);
         Future.delayed(Duration(minutes: NetworkConstants.presentMinutes), () {
           // Correct check inside a Notifier
           if (state.isIdle || state.isEnded) return;
@@ -137,7 +141,7 @@
         // Mark as ended
         state = SessionState.ended();
       }catch(e){
-        print('Error ending session: $e');
+        print('[BROADCAST_END]Error ending session: $e');
         state = SessionState.ended(); // Mark as ended even if error
         rethrow;
       }
