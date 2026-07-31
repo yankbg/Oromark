@@ -192,4 +192,77 @@ class UdpService {
 
     return broadcast;
   }
+  /// Listen for attendance submissions from students on port 5501
+  /// Called by lecturer when session is active
+  Future<void> listenForAttendanceSubmissions(
+      Function(Map<String, dynamic>, InternetAddress) onAttendanceReceived,
+      ) async {
+    try {
+      final attendanceSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        NetworkConstants.udpPort,  // Same port for both broadcast and submissions
+      );
+      attendanceSocket.broadcastEnabled = true;
+
+      attendanceSocket.listen((event) {
+        if (event == RawSocketEvent.read) {
+          final datagram = attendanceSocket.receive();
+          if (datagram != null) {
+            try {
+              final message = String.fromCharCodes(datagram.data);
+              final data = jsonDecode(message) as Map<String, dynamic>;
+
+              // Check if this is an attendance submission
+              if (data['type'] == 'attendance_submit') {
+                print('[UDP_SERVICE] Received attendance submission: ${data['studentId']}');
+                onAttendanceReceived(data, datagram.address);
+              }
+            } catch (e) {
+              print('[UDP_SERVICE] Error parsing attendance submission: $e');
+            }
+          }
+        }
+      });
+
+      print('[UDP_SERVICE] Listening for attendance submissions on port ${NetworkConstants.udpPort}');
+    } catch (e) {
+      print('[UDP_SERVICE] Error setting up attendance listener: $e');
+      rethrow;
+    }
+  }
+
+  /// Send attendance confirmation back to student
+  Future<void> sendAttendanceConfirmation({
+    required String studentId,
+    required String status,  // "PRESENT" or "LATE"
+    required String sessionId,
+    required InternetAddress studentAddress,
+    required int responsePort,
+  }) async {
+    try {
+      final confirmationSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,  // Let OS pick a free port
+      );
+
+      final payload = {
+        'type': 'attendance_confirm',
+        'studentId': studentId,
+        'sessionId': sessionId,
+        'status': status,
+        'message': status == 'PRESENT' ? 'Attendance confirmed' : 'Marked as late',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      final message = jsonEncode(payload).codeUnits;
+      confirmationSocket.send(message, studentAddress, responsePort);
+
+      print('[UDP_SERVICE] Sent confirmation to $studentId: $status');
+
+      confirmationSocket.close();
+    } catch (e) {
+      print('[UDP_SERVICE] Error sending confirmation: $e');
+      rethrow;
+    }
+  }
 }
