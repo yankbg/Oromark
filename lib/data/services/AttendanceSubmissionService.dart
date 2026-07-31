@@ -6,10 +6,19 @@ class LocalAttendanceServer {
   HttpServer? _server;
   final Map<String, DateTime> _lastRequestAt = {}; // key: '$sessionId:$studentId'
 
-  Future<void> start({required String sessionId, required int port,required AppDatabase db}) async {
+  Future<void> start({
+    required String sessionId,
+    required int port,
+    required AppDatabase db,
+  }) async {
     _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
     final ip = _server!.address.address;
     print('[HTTP_SERVER] listening on http://$ip:$port');
+
+    // Start handling requests in the background; do NOT await this forever-loop here.
+    _handleRequests(sessionId, db);
+  }
+  Future<void> _handleRequests(String sessionId, AppDatabase db) async {
 
     await for (final request in _server!) {
       if (request.method == 'POST' && request.uri.path == '/attendance') {
@@ -99,6 +108,7 @@ class LocalAttendanceServer {
   Future<void> stop() async {
     await _server?.close();
     _server = null;
+    _lastRequestAt.clear();
     _lastRequestAt.clear();
     print('[HTTP_SERVER] stopped');
   }

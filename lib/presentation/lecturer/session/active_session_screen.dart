@@ -119,6 +119,20 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
     //   });
     // }
     if (confirmed == true && mounted) {
+      await ref
+          .read(sessionNotifierProvider.notifier)
+          .endSession();
+
+      ref.invalidate(
+        sessionControllerProvider(
+          (
+          sessionId: params.sessionId,
+          courseCode: params.courseCode,
+          courseName: params.courseName,
+          enrolled: params.enrolled,
+          ),
+        ),
+      );
       // [MOCK] — replace with real sessionNotifier.endSession()
       final summary = SessionSummaryState(
         courseCode: state.courseCode,

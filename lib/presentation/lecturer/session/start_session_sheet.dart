@@ -145,10 +145,10 @@ class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
     try{
       // Map the dropdown index to a real Duration
       final duration = switch (_durationIdx) {
-        0 => const Duration(hours: 1),
-        1 => const Duration(minutes: 90),
+        0 => const Duration(hours: 4),
+        1 => const Duration(hours: 3),
         2 => const Duration(hours: 2),
-        _ => const Duration(hours: 1),
+        _ => const Duration(hours: 2),
       };
       final roomCode = _roomCtrl.text.trim().isEmpty ? generateRoomCode() : _roomCtrl.text.trim();
 
@@ -168,6 +168,7 @@ class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
         _selected!.courseName,
         roomCode: roomCode,
       );
+      print('[UDP_SERVICE] After startSession() -> sessionId: $sessionId');
       if (!mounted) return;
 
       HapticFeedback.heavyImpact();

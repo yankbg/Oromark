@@ -1,5 +1,6 @@
   //The most important provider
   import 'package:oromark/core/utils/room_code_generator.dart';
+import 'package:oromark/providers/attendance_submission_provider.dart';
   import 'package:uuid/uuid.dart';
   
   import '../core/constants/network_constants.dart';
@@ -30,8 +31,10 @@
     /// Throws: Exception if WiFi not connected
   
     Future<String> startSession(String courseCode, String courseName, {required String roomCode}) async {
+      print('[SESSION_NOTIFIER] startSession called: $courseCode - $courseName, room=$roomCode');
       // final roomCode = roomCode;
       final sessionId = const Uuid().v4();
+      print('[SESSION_NOTIFIER] sessionId generated: $sessionId');
       final now = DateTime.now();
   
       final presentCutoff =
@@ -54,6 +57,7 @@
           state = SessionState.idle();
           throw Exception('Not connected to WiFi. Connect and try again.');
         }
+        print('[SESSION_NOTIFIER] inserting session into DB...');
         // CRITICAL FIX: Insert session record to database
         final db = ref.read(appDatabaseProvider);
         await db.insertSession(
@@ -68,6 +72,7 @@
             createdAt: now.millisecondsSinceEpoch, presentCutoff: '', lateCutoff: '',
           ),
         );
+        print('[SESSION_NOTIFIER] session inserted into DB');
 
         // Update notifier state
         state = SessionState.active(
@@ -90,8 +95,21 @@
         print('[LECTURER] broadcast payload: $payload');
         print('[LECTURER] payload keys: ${payload.keys.toList()}');
         print('[LECTURER] port: ${NetworkConstants.udpPort}');
+
+        // Start HTTP server for this session
+        print('[SESSION_NOTIFIER] starting HTTP server...');
+        await ref.read(localAttendanceServerProvider).start(
+          sessionId: sessionId,
+          port: NetworkConstants.httpPort,
+          db: ref.read(appDatabaseProvider),
+        );
+        print('[SESSION_NOTIFIER] HTTP server started');
+
         // Start UDP broadcast (students auto-discover)
+        print('[SESSION_NOTIFIER] starting UDP broadcast...');
         await ref.read(udpServiceProvider).startBroadcasting(payload);
+        print('[SESSION_NOTIFIER] UDP broadcast started');
+
         Future.delayed(Duration(minutes: NetworkConstants.presentMinutes), () {
           // Correct check inside a Notifier
           if (state.isIdle || state.isEnded) return;
@@ -102,13 +120,15 @@
           if (state.isEnded) return;
           await endSession();
         });
-
+        print('[SESSION_NOTIFIER] UDP broadcast started');
         return sessionId;
-      }catch(e){
+      }catch(e, st){
           // Cleanup on error
           state = SessionState.idle();
           await ref.read(httpServerProvider).stopServer();
           ref.read(udpServiceProvider).stopBroadcasting();
+          print('[SESSION_NOTIFIER] startSession error: $e');
+          print('[SESSION_NOTIFIER] stack trace: $st');
           rethrow;
 
       }
@@ -128,6 +148,7 @@
         // Stop advertising new submissions
         ref.read(udpServiceProvider).stopBroadcasting();
         await ref.read(httpServerProvider).stopServer();
+        await ref.read(localAttendanceServerProvider).stop();
 
         // Compute and insert absent records
         await _computeAbsent();

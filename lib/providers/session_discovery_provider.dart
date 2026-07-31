@@ -79,15 +79,19 @@ StreamProvider<List<DetectedSession>>((ref) async* {
             lecturerName: sessionData['lecturerName'] as String,
             room: sessionData['room'] as String,
             roomCode: sessionData['roomCode'] as String, // [SENSITIVE] only shown to lecturer
-            presentCutoff: DateTime.now().add(
-              Duration(minutes: sessionData['presentMinutes'] as int),
-            ),
-            lateCutoff: DateTime.now().add(
-              Duration(minutes: sessionData['lateMinutes'] as int),
-            ),
+            presentCutoff: DateTime.parse(sessionData['startTime'] as String)
+                .toLocal()
+                .add(const Duration(minutes: NetworkConstants.presentMinutes)), // or whatever your present window is
+            lateCutoff: DateTime.parse(sessionData['endTime'] as String)
+                .toLocal(),
             lecturerIP: sessionData['lecturerIP'] as String,
             lecturerPort: sessionData['lecturerPort'] as int,
           );
+          final start = DateTime.parse(sessionData['startTime'] as String).toLocal();
+          final end   = DateTime.parse(sessionData['endTime'] as String).toLocal();
+          final presentCutoff = start.add(const Duration(minutes: 10));
+
+          print('[DiscoveryProvider] start=$start, presentCutoff=$presentCutoff, end=$end, now=${DateTime.now()}');
 
           // ── Update sessions map & emit ───────────────────────────────
           sessions[detected.sessionId] = detected;

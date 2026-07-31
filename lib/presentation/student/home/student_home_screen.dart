@@ -49,6 +49,8 @@ import 'student_home_controller.dart';
         print('[UDP_SERVICE] raw packet: $sessionData');
         print('[UDP_SERVICE] keys: ${sessionData.keys.toList()}');
 
+        print('[STUDENT] isLate=${sessionData['isLate']}, now=${DateTime.now()}, presentCutoff=${sessionData['presentCutoff']}');
+
         try {
           final startTime = DateTime.parse(sessionData['startTime'] as String);
           final endTime = DateTime.parse(sessionData['endTime'] as String);
