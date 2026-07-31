@@ -150,11 +150,11 @@ class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
         2 => const Duration(hours: 2),
         _ => const Duration(hours: 1),
       };
-      final room = _roomCtrl.text.trim().isEmpty ? generateRoomCode() : _roomCtrl.text.trim();
+      final roomCode = _roomCtrl.text.trim().isEmpty ? generateRoomCode() : _roomCtrl.text.trim();
 
       print('[UDP_SERVICE] --- START SESSION ---');
       print('[UDP_SERVICE] Course: ${_selected!.courseCode} - ${_selected!.courseName}');
-      print('[UDP_SERVICE] Room: $room');
+      print('[UDP_SERVICE] Room code: $roomCode');
       print('[UDP_SERVICE] Duration: $duration');
       print('[UDP_SERVICE] Selected course model: ${_selected!.toString()}');
       // This starts:
@@ -166,22 +166,20 @@ class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
           .startSession(
         _selected!.courseCode,
         _selected!.courseName,
-        roomCode: room,
+        roomCode: roomCode,
       );
       if (!mounted) return;
 
       HapticFeedback.heavyImpact();
       print('Session started! UDP broadcast should be active now.');
-      final sessionState = ref.read(sessionNotifierProvider);
-      // final sessionId = sessionState.sessionId;
-      print('[ActiveSessionScreen]Navigating to ActiveSessionScreen with sessionId=$sessionId');
+
       Navigator.of(context).pop();
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) =>  ActiveSessionScreen(
           sessionId: sessionId,
           course: _selected!,   // full CourseModel from list/detail
           duration: duration,
-          room: room,
+          room: roomCode,
         )),
       );
     }catch(e){

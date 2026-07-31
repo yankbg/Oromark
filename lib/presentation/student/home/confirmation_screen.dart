@@ -10,9 +10,11 @@
 // 5. Success overlay after confirmation
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:oromark/data/models/auth_result.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_state_provider.dart';
@@ -78,6 +80,34 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
     return true;
   }
 
+  Future<String> submitAttendance({
+    required DetectedSession session,
+    required String studentId,
+  }) async {
+    final uri = Uri.parse('http://${session.lecturerIP}:${session.lecturerPort}/attendance');
+
+    final payload = {
+      'sessionId': session.sessionId,
+      'studentId': studentId,
+      'status': session.isLate ? 'LATE' : 'PRESENT',
+    };
+
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    if (resp.statusCode == 200) {
+
+      // HTTP OK → now call the callback (local DB + UI update)
+      final status = await widget.onSubmit(session, studentId);
+      return status;
+    } else {
+      throw Exception('Attendance submit failed: ${resp.statusCode} ${resp.body}');
+    }
+  }
+
   Future<void> _handleConfirm() async {
     // ✅ First: Validate room code
     if (!_validateRoomCode()) {
@@ -100,10 +130,17 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
         setState(() => _codeError = 'You are not logged in');
         return;
       }
-      final status = await widget.onSubmit(
-        widget.session,
-        authResult.userId,
+      final status = await submitAttendance(
+        session: widget.session,
+        studentId: authResult.userId,
       );
+      print('[Student] HTTP submit status: $status');
+
+      // final status = await widget.onSubmit(
+      //   widget.session,
+      //   authResult.userId,
+      // );
+
       if (!mounted) return;
 
       HapticFeedback.heavyImpact();

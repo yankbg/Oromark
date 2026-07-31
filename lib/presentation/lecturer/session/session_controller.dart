@@ -392,7 +392,7 @@ final sessionControllerProvider = StateNotifierProvider.family<
     ({String sessionId,String courseCode, String courseName, int enrolled})>(
       (ref, params) => SessionController(
     db: ref.watch(appDatabaseProvider),
-        sessionId:  params.sessionId,
+    sessionId:  params.sessionId,
     courseCode: params.courseCode,
     courseName: params.courseName,
     enrolled: params.enrolled,
