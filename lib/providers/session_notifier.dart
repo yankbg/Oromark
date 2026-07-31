@@ -29,7 +29,7 @@
     ///
     /// Throws: Exception if WiFi not connected
   
-    Future<void> startSession(String courseCode, String courseName, {required String roomCode}) async {
+    Future<String> startSession(String courseCode, String courseName, {required String roomCode}) async {
       // final roomCode = roomCode;
       final sessionId = const Uuid().v4();
       final now = DateTime.now();
@@ -103,7 +103,7 @@
           await endSession();
         });
 
-
+        return sessionId;
       }catch(e){
           // Cleanup on error
           state = SessionState.idle();

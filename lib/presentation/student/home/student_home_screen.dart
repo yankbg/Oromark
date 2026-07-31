@@ -114,6 +114,8 @@ import 'student_home_controller.dart';
                               MaterialPageRoute(
                                 builder: (_) => ConfirmationScreen(
                                   session: _controller.session!,
+                                  onSubmit: (session, studentId) =>
+                                      _controller.submitAttendance(session: session, studentId: studentId),
                                 ),
                               ),
                             );

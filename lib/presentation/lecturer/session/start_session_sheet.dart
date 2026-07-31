@@ -161,7 +161,7 @@ class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
       //   1. UDP broadcast (students can discover)
       //   2. HTTP server (students can submit attendance)
       //   3. Database session record
-      await widget.ref
+      final sessionId = await widget.ref
           .read(sessionNotifierProvider.notifier)
           .startSession(
         _selected!.courseCode,
@@ -172,10 +172,13 @@ class _StartSessionSheetState extends ConsumerState<_StartSessionSheet> {
 
       HapticFeedback.heavyImpact();
       print('Session started! UDP broadcast should be active now.');
-
+      final sessionState = ref.read(sessionNotifierProvider);
+      // final sessionId = sessionState.sessionId;
+      print('[ActiveSessionScreen]Navigating to ActiveSessionScreen with sessionId=$sessionId');
       Navigator.of(context).pop();
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) =>  ActiveSessionScreen(
+          sessionId: sessionId,
           course: _selected!,   // full CourseModel from list/detail
           duration: duration,
           room: room,

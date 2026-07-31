@@ -1,3 +1,4 @@
+//  ...lib/data/models/auth_result
 
 class AuthResult {
   final String fullname;

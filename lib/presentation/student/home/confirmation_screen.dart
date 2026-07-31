@@ -12,18 +12,22 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oromark/data/models/auth_result.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/auth_state_provider.dart';
 import 'student_home_controller.dart'; // DetectedSession lives here
 
-class ConfirmationScreen extends StatefulWidget {
+class ConfirmationScreen extends ConsumerStatefulWidget {
   final DetectedSession session;
-  const ConfirmationScreen({super.key, required this.session});
+  final Future<String> Function(DetectedSession session,String studentId) onSubmit;
+  const ConfirmationScreen({super.key, required this.session, required this.onSubmit});
 
   @override
-  State<ConfirmationScreen> createState() => _ConfirmationScreenState();
+ ConsumerState<ConfirmationScreen> createState() => _ConfirmationScreenState();
 }
 
-class _ConfirmationScreenState extends State<ConfirmationScreen> {
+class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
   late final TextEditingController _roomCodeController;
   bool _submitting = false;
   bool _confirmed = false;
@@ -88,20 +92,42 @@ class _ConfirmationScreenState extends State<ConfirmationScreen> {
     //   session: widget.session,
     //   studentId: 'U-2023-8841', // [MOCK] replace with real from Supabase
     // );
+    try{
+      final authState  =  ref.watch(authStateNotifierProvider);
+      final authResult = authState.value;
 
-    await Future.delayed(const Duration(milliseconds: 800));
+      if (authResult == null) {
+        setState(() => _codeError = 'You are not logged in');
+        return;
+      }
+      final status = await widget.onSubmit(
+        widget.session,
+        authResult.userId,
+      );
+      if (!mounted) return;
 
-    if (!mounted) return;
-    HapticFeedback.heavyImpact();
-    setState(() {
-      _submitting = false;
-      _confirmed = true;
-    });
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _submitting = false;
+        _confirmed = true;
+      });
+      // Auto-pop after the success overlay shows
+      Future.delayed(const Duration(milliseconds: 2600), () {
+        if (mounted) Navigator.of(context).pop();
+      });
+    }catch(e){
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      HapticFeedback.lightImpact();
+      setState(() => _codeError = 'Failed to record attendance: $e');
+      print('Failed to record attendance: $e');
+    }
+    // await Future.delayed(const Duration(milliseconds: 800));
 
-    // Auto-pop after the success overlay shows
-    Future.delayed(const Duration(milliseconds: 2600), () {
-      if (mounted) Navigator.of(context).pop();
-    });
+
+
+
+
   }
 
   void _handleCancel() {

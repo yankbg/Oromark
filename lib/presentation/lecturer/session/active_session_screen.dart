@@ -9,17 +9,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/session_notifier.dart';
 import 'session_controller.dart';
 import 'session_stats.dart';
 import '../../../data/models/course_model.dart';
 import 'session_summary_screen.dart';
 
 class ActiveSessionScreen extends ConsumerStatefulWidget {
+  final String sessionId;
   final CourseModel course;
   final Duration duration;
   final String? room;
   const ActiveSessionScreen({
     super.key,
+    required this.sessionId,
     required this.course,
     required this.duration,
     this.room,
@@ -35,11 +38,17 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
   int _navIndex     = 0;
 
   // Helper to build the provider params
-  ({String courseCode, String courseName, int enrolled}) get _params => (
-  courseCode: widget.course.courseCode,
-  courseName: widget.course.courseName,
-  enrolled:   widget.course.enrolled,
-  );
+  ({String sessionId, String courseCode, String courseName, int enrolled})? get _params {
+    // final activeSession = ref.read(sessionNotifierProvider);
+    // final sessionId = activeSession.sessionId;
+    // if (sessionId == null) return null;
+    return (
+    sessionId:   widget.sessionId,
+    courseCode:  widget.course.courseCode,
+    courseName:  widget.course.courseName,
+    enrolled:    widget.course.enrolled,
+    );
+  }
 
   @override
   void dispose() {
@@ -50,7 +59,12 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
   // ── End session ─────────────────────────────────────────────────────────
 
   Future<void> _confirmEndSession() async {
-    final state = ref.watch(sessionControllerProvider(_params));
+    final params = _params;
+    if (params == null) {
+      // Session not ready yet
+      return;
+    }
+    final state = ref.watch(sessionControllerProvider(params));
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -59,7 +73,6 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
         title: const Text(
           'End Session?',
           style: TextStyle(
-            fontFamily:  'Inter',
             fontWeight:  FontWeight.w700,
             color:       AppColors.textPrimary,
           ),
@@ -68,7 +81,6 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
           'This will stop the UDP broadcast, close the HTTP server, '
               'and auto-mark absent students. This cannot be undone.',
           style: TextStyle(
-            fontFamily: 'Inter',
             fontSize:   14,
             color:      AppColors.textSecondary,
             height:     1.5,
@@ -133,12 +145,20 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final params = _params;
+    if (params == null) {
+      // Session not ready yet: show loading or empty UI
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor:          Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ));
 
-    final state = ref.watch(sessionControllerProvider(_params));
+    final state = ref.watch(sessionControllerProvider(params));
 
     return Scaffold(
       backgroundColor: AppColors.bgSecondary,
@@ -150,13 +170,13 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
               state:          state,
               searchCtrl:     _searchCtrl,
               onSearch: (q) => ref
-                  .read(sessionControllerProvider(_params).notifier)
+                  .read(sessionControllerProvider(params).notifier)
                   .updateSearch(q),
               onFilter: (s) => ref
-                  .read(sessionControllerProvider(_params).notifier)
+                  .read(sessionControllerProvider(params).notifier)
                   .setFilter(s),
               onStartLate: () => ref
-                  .read(sessionControllerProvider(_params).notifier)
+                  .read(sessionControllerProvider(params).notifier)
                   .startLateWindow(),
               course: widget.course,
               roomOverride: widget.room,
@@ -176,7 +196,6 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
         label: const Text(
           'End Session',
           style: TextStyle(
-            fontFamily:  'Inter',
             fontSize:    14,
             fontWeight:  FontWeight.w700,
           ),
@@ -222,7 +241,6 @@ class _TopBar extends StatelessWidget {
               const Text(
                 'Attendance Manager',
                 style: TextStyle(
-                  fontFamily:  'Inter',
                   fontSize:    18,
                   fontWeight:  FontWeight.w700,
                   color:       AppColors.primary,

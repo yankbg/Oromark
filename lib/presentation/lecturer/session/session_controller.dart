@@ -189,21 +189,24 @@ class SessionController extends StateNotifier<ActiveSessionState> {
   Timer? _ticker;
   StreamSubscription<List<AttendanceRecord>>? _attendanceSubscription;
   final AppDatabase _db;
+  final String _sessionId;
   final String _courseCode;
   final String _courseName;
   final int _enrolled;
 
   SessionController({
     required AppDatabase db,
+    required String sessionId,
     required String courseCode,
     required String courseName,
     required int enrolled,
   })
       : _db = db,
+        _sessionId = sessionId,
         _courseCode = courseCode,
         _courseName = courseName,
         _enrolled = enrolled,
-        super(_buildInitialState(courseCode, courseName, enrolled)) {
+        super(_buildInitialState(sessionId,courseCode, courseName, enrolled)) {
     _startTicker();
     _subscribeToAttendance();
     // [MOCK] — simulate 2 more students checking in after 5 s
@@ -214,6 +217,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
   }
 
   static ActiveSessionState _buildInitialState(
+      String sessionId,
       String courseCode,
       String courseName,
       int enrolled,
@@ -234,17 +238,24 @@ class SessionController extends StateNotifier<ActiveSessionState> {
     );
   }
   // Subscribe to real-time attendance updates
+  // void _subscribeToAttendance() {
+  //   // TODO: Get actual session ID from context — for now use mock courseCode
+  //   const sessionId = 'session-cs301-2026-10-24';
+  //
+  //   _attendanceSubscription = _db.watchSessionAttendance(sessionId).listen(
+  //         (records) {
+  //       // Rebuild student list from enrolled + attendance records
+  //       _rebuildStudentList(records);
+  //     },
+  //   );
+  // }
   void _subscribeToAttendance() {
-    // TODO: Get actual session ID from context — for now use mock courseCode
-    const sessionId = 'session-cs301-2026-10-24';
-
-    _attendanceSubscription = _db.watchSessionAttendance(sessionId).listen(
-          (records) {
-        // Rebuild student list from enrolled + attendance records
-        _rebuildStudentList(records);
-      },
-    );
+    _attendanceSubscription =
+        _db.watchSessionAttendance(_sessionId).listen((records) {
+          _rebuildStudentList(records);
+        });
   }
+
 
   Future<void> _rebuildStudentList(List<AttendanceRecord> attendanceRecords) async {
     final enrolled = await _db.getEnrolledStudents(_courseCode);
@@ -378,9 +389,10 @@ class SessionSummaryState {
 final sessionControllerProvider = StateNotifierProvider.family<
     SessionController,
     ActiveSessionState,
-    ({String courseCode, String courseName, int enrolled})>(
+    ({String sessionId,String courseCode, String courseName, int enrolled})>(
       (ref, params) => SessionController(
     db: ref.watch(appDatabaseProvider),
+        sessionId:  params.sessionId,
     courseCode: params.courseCode,
     courseName: params.courseName,
     enrolled: params.enrolled,
