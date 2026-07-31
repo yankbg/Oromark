@@ -6,7 +6,7 @@ class LocalAttendanceServer {
   HttpServer? _server;
   final Map<String, DateTime> _lastRequestAt = {}; // key: '$sessionId:$studentId'
 
-  Future<void> start(String sessionId, int port, AppDatabase db) async {
+  Future<void> start({required String sessionId, required int port,required AppDatabase db}) async {
     _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
     final ip = _server!.address.address;
     print('[HTTP_SERVER] listening on http://$ip:$port');
