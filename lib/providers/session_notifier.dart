@@ -102,6 +102,8 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
           sessionId: sessionId,
           port: NetworkConstants.httpPort,
           db: ref.read(appDatabaseProvider),
+          presentCutoff: presentCutoff,
+          lateCutoff: lateCutoff,
         );
         print('[SESSION_NOTIFIER] HTTP server started');
 

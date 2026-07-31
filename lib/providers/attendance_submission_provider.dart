@@ -11,12 +11,19 @@ final localAttendanceServerProvider = Provider<LocalAttendanceServer>((ref) {
 });
 
 extension LocalAttendanceServerX on LocalAttendanceServer {
-  Future<void> startForSession(WidgetRef ref, String sessionId) async {
+  Future<void> startForSession({
+    required Ref ref,
+    required String sessionId,
+    required DateTime presentCutoff,
+    required DateTime lateCutoff,
+  }) async {
     final db = ref.read(appDatabaseProvider);
     await start(
       sessionId: sessionId,
       port: NetworkConstants.httpPort,
       db: db,
+      presentCutoff: presentCutoff,
+      lateCutoff: lateCutoff,
     );
   }
 }
