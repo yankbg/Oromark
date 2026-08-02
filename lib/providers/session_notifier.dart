@@ -2,7 +2,8 @@
   import 'package:oromark/core/utils/room_code_generator.dart';
 import 'package:oromark/providers/attendance_submission_provider.dart';
   import 'package:uuid/uuid.dart';
-  
+  import 'dart:async';
+
   import '../core/constants/network_constants.dart';
   import '../domain/entities/session_state.dart';
   import '../data/database/app_database.dart';
@@ -16,6 +17,8 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
   @riverpod
   
   class SessionNotifier extends _$SessionNotifier {
+    Timer? _presentIntervalTimer;
+    Timer? _lateIntervalTimer;
     @override
     SessionState build() => SessionState.idle();
 
@@ -32,6 +35,12 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
   
     Future<String> startSession(String courseCode, String courseName, {required String roomCode}) async {
       print('[SESSION_NOTIFIER] startSession called: $courseCode - $courseName, room=$roomCode');
+      // ← ADD THESE 5 LINES (cancel old timers)
+      _presentIntervalTimer?.cancel();
+      _presentIntervalTimer = null;
+      _lateIntervalTimer?.cancel();
+      _lateIntervalTimer = null;
+      print('[SESSION_NOTIFIER] Cleaned up any previous timers');
       // final roomCode = roomCode;
       final sessionId = const Uuid().v4();
       print('[SESSION_NOTIFIER] sessionId generated: $sessionId');
@@ -112,19 +121,34 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
         await ref.read(udpServiceProvider).startBroadcasting(payload);
         print('[SESSION_NOTIFIER] UDP broadcast started');
 
-        Future.delayed(Duration(minutes: NetworkConstants.presentMinutes), () {
-          // Correct check inside a Notifier
+        // Future.delayed(Duration(minutes: NetworkConstants.presentMinutes), () {
+        //   // Correct check inside a Notifier
+        //   if (state.isIdle || state.isEnded) return;
+        //   ref.read(udpServiceProvider).switchToLateInterval();
+        // });
+        _presentIntervalTimer = Timer(Duration(minutes: NetworkConstants.presentMinutes), () {
           if (state.isIdle || state.isEnded) return;
+          print('[SESSION_NOTIFIER] Present interval timer fired - switching to late interval');
           ref.read(udpServiceProvider).switchToLateInterval();
         });
 
-        Future.delayed(Duration(minutes: NetworkConstants.lateMinutes), () async {
+        // Future.delayed(Duration(minutes: NetworkConstants.lateMinutes), () async {
+        //   if (state.isEnded) return;
+        //   await endSession();
+        // });
+        _lateIntervalTimer = Timer(Duration(minutes: NetworkConstants.lateMinutes), () async {
           if (state.isEnded) return;
+          print('[SESSION_NOTIFIER] Late interval timer fired - auto-ending session');
           await endSession();
         });
         print('[SESSION_NOTIFIER] UDP broadcast started');
         return sessionId;
       }catch(e, st){
+        _presentIntervalTimer?.cancel();
+        _presentIntervalTimer = null;
+        _lateIntervalTimer?.cancel();
+        _lateIntervalTimer = null;
+        print('[SESSION_NOTIFIER] Cancelled timers due to error');
           // Cleanup on error
           state = SessionState.idle();
           await ref.read(httpServerProvider).stopServer();
@@ -147,6 +171,11 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
   
     Future<void> endSession() async {
       try{
+        _presentIntervalTimer?.cancel();
+        _presentIntervalTimer = null;
+        _lateIntervalTimer?.cancel();
+        _lateIntervalTimer = null;
+        print('[SESSION_NOTIFIER] Cancelled scheduled timers on session end');
         // Stop advertising new submissions
         ref.read(udpServiceProvider).stopBroadcasting();
         await ref.read(httpServerProvider).stopServer();
