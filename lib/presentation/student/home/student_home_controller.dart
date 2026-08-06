@@ -61,10 +61,9 @@ class DetectedSession {
 class StudentHomeController extends ChangeNotifier {
   StudentHomeController({
     required TickerProvider vsync,
-    required UdpService udpService,
+    // required UdpService udpService,
     AppDatabase? database,
-  }) : _db = database,
-        _udpService = udpService {
+  }) : _db = database{
     _initAnimations(vsync);
     // ✅ [UPDATED] Removed _startListening()
     // The discoveredSessionsProvider in lib/providers/ handles UDP listening now
@@ -72,7 +71,7 @@ class StudentHomeController extends ChangeNotifier {
   }
 
   final AppDatabase? _db;
-  final UdpService _udpService;
+  // final UdpService _udpService;
 
   // ── Public state ────────────────────────────────────────────────────────────
   DetectedSession? session;

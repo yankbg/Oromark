@@ -43,8 +43,14 @@ final sessionUdpServiceProvider = Provider<RawDatagramSocket?>((_) => null);
 /// - Emit AsyncError if socket binding fails
 ///
 /// Sessions expire automatically (checked in UI via session.remaining)
+
 final discoveredSessionsProvider =
-StreamProvider<List<DetectedSession>>((ref) async* {
+StreamProvider<List<DetectedSession>>((ref) {
+  ref.keepAlive();  // Keep alive across navigation ← NEW
+  return _discoveredSessionsStream();  // Extracted into helper function ← NEW
+});
+
+Stream<List<DetectedSession>> _discoveredSessionsStream() async* {
 
   RawDatagramSocket? socket;
   final sessions = <String, DetectedSession>{};
@@ -76,8 +82,8 @@ StreamProvider<List<DetectedSession>>((ref) async* {
             sessionId: sessionData['sessionId'] as String,
             courseCode: sessionData['courseCode'] as String,
             courseName: sessionData['courseName'] as String,
-            lecturerName: sessionData['lecturerName'] as String,
-            room: sessionData['room'] as String,
+            lecturerName: 'lecturer',
+            room: sessionData['roomCode'] as String,
             roomCode: sessionData['roomCode'] as String, // [SENSITIVE] only shown to lecturer
             presentCutoff: DateTime.parse(sessionData['startTime'] as String)
                 .toLocal()
@@ -120,4 +126,4 @@ StreamProvider<List<DetectedSession>>((ref) async* {
     socket?.close();
     print('[DiscoveryProvider] UDP listener stopped');
   }
-});
+}
