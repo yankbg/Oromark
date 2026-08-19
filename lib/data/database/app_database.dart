@@ -190,7 +190,8 @@ class AppDatabase extends _$AppDatabase {
     if (existing.isNotEmpty) return;
 
     // The logged-in student — matches 'Alex Rivera' in CS301 enrolled list.
-    await into(students).insert(
+    await batch((b) {
+      b.insertAll(students, [
       StudentsCompanion.insert(
         studentId:   'U-2023-8841',
         studentName:    'Alex Rivera',
@@ -200,7 +201,38 @@ class AppDatabase extends _$AppDatabase {
         yearOfStudy:    '3rd Year',
           password:      '1234'
       ),
-    );
+      StudentsCompanion.insert(
+        studentId: 'U-2023-9102',
+        studentName: 'Elena Sofia',
+        studentEmail: 'elena.sofia@iuea.ac.ug',
+        phoneNumber: '+256 790 228 490',
+        programme: 'Computer Science',
+        yearOfStudy: '3rd Year',
+        password: '5678',
+      ),
+
+      StudentsCompanion.insert(
+        studentId: 'U-2023-7443',
+        studentName: 'Jordan Mills',
+        studentEmail: 'jordan.mills@iuea.ac.ug',
+        phoneNumber: '+256 790 228 491',
+        programme: 'Computer Science',
+        yearOfStudy: '3rd Year',
+        password: '9123',
+      ),
+
+      StudentsCompanion.insert(
+        studentId: 'U-2023-1109',
+        studentName: 'Maya Kaur',
+        studentEmail: 'maya.kaur@iuea.ac.ug',
+        phoneNumber: '+256 790 228 492',
+        programme: 'Computer Science',
+        yearOfStudy: '3rd Year',
+        password: '4567',
+      ),
+
+      ]);
+    });
   }
   static EnrolledStudentsCompanion _buildStudent(
       String studentId,

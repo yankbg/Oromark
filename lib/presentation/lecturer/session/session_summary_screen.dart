@@ -237,30 +237,33 @@ class _BottomActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    return Container(
+    return Material(
       color: AppColors.bgSecondary,
-      padding: EdgeInsets.only(
-        left:   16,
-        right:  16,
-        top:    16,
-        bottom: 16 + MediaQuery.of(context).padding.bottom,
-      ),
-      child: screenWidth < 600
-          ? _MobileLayout(
-        onExportPDF:  onExportPDF,
-        onExportCSV:  onExportCSV,
-        onNewSession: onNewSession,
-      )
-          : screenWidth < 1024
-          ? _TabletLayout(
-        onExportPDF:  onExportPDF,
-        onExportCSV:  onExportCSV,
-        onNewSession: onNewSession,
-      )
-          : _DesktopLayout(
-        onExportPDF:  onExportPDF,
-        onExportCSV:  onExportCSV,
-        onNewSession: onNewSession,
+      child: SafeArea(
+        top: false,
+        left: false,
+        right: false,
+        maintainBottomViewPadding: true,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          child: screenWidth < 600
+              ? _MobileLayout(
+            onExportPDF: onExportPDF,
+            onExportCSV: onExportCSV,
+            onNewSession: onNewSession,
+          )
+              : screenWidth < 1024
+              ? _TabletLayout(
+            onExportPDF: onExportPDF,
+            onExportCSV: onExportCSV,
+            onNewSession: onNewSession,
+          )
+              : _DesktopLayout(
+            onExportPDF: onExportPDF,
+            onExportCSV: onExportCSV,
+            onNewSession: onNewSession,
+          ),
+        ),
       ),
     );
   }

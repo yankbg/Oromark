@@ -129,18 +129,20 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
         _presentIntervalTimer = Timer(Duration(minutes: NetworkConstants.presentMinutes), () {
           if (state.isIdle || state.isEnded) return;
           print('[SESSION_NOTIFIER] Present interval timer fired - switching to late interval');
-          ref.read(udpServiceProvider).switchToLateInterval();
+          // ref.read(udpServiceProvider).switchToLateInterval();
+          switchToLateInterval();
         });
 
         // Future.delayed(Duration(minutes: NetworkConstants.lateMinutes), () async {
         //   if (state.isEnded) return;
         //   await endSession();
         // });
-        _lateIntervalTimer = Timer(Duration(minutes: NetworkConstants.lateMinutes), () async {
-          if (state.isEnded) return;
-          print('[SESSION_NOTIFIER] Late interval timer fired - auto-ending session');
-          await endSession();
-        });
+
+        // _lateIntervalTimer = Timer(Duration(minutes: NetworkConstants.lateMinutes), () async {
+        //   if (state.isEnded) return;
+        //   print('[SESSION_NOTIFIER] Late interval timer fired - auto-ending session');
+        //   await endSession();
+        // });
         print('[SESSION_NOTIFIER] UDP broadcast started');
         return sessionId;
       }catch(e, st){
@@ -264,5 +266,23 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
       //     );
       //   }
       // }
+    }
+    void switchToLateInterval() {
+      final currentState = state;
+
+      if (currentState.isIdle || currentState.isEnded) {
+        print('[SESSION_NOTIFIER] Cannot switch to late interval: no active session');
+        return;
+      }
+
+      // if (currentState.inLateWindow) {
+      //   print('[SESSION_NOTIFIER] Already in late interval');
+      //   return;
+      // }
+
+      state = currentState.copyWith(inLateWindow: true);
+      ref.read(udpServiceProvider).switchToLateInterval();
+
+      print('[SESSION_NOTIFIER] Switched to late interval');
     }
   }

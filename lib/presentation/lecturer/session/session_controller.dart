@@ -9,6 +9,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oromark/core/constants/network_constants.dart';
 import '../../../data/database/app_database.dart';
 import '../../../providers/app_database_provider.dart';
 
@@ -228,8 +229,8 @@ class SessionController extends StateNotifier<ActiveSessionState> {
       courseName:    courseName,
       room:          'A204',
       startedAt:     now.subtract(const Duration(minutes: 2)),
-      presentCutoff: now.add(const Duration(minutes: 8)),
-      lateCutoff:    now.add(const Duration(minutes: 18)),
+      presentCutoff: now.add(const Duration(minutes: NetworkConstants.presentMinutes)),
+      lateCutoff:    now.add(const Duration(minutes: NetworkConstants.lateMinutes)),
       window:        SessionWindow.present,
       presentCount:  0,
       lateCount:     0,

@@ -217,10 +217,10 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
       ),
       floatingActionButtonLocation:
       FloatingActionButtonLocation.endDocked,
-      bottomNavigationBar: _BottomNav(
-        selectedIndex: _navIndex,
-        onTap: (i) => setState(() => _navIndex = i),
-      ),
+      // bottomNavigationBar: _BottomNav(
+      //   selectedIndex: _navIndex,
+      //   onTap: (i) => setState(() => _navIndex = i),
+      // ),
     );
   }
 }
@@ -243,15 +243,15 @@ class _TopBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              GestureDetector(
-                onTap: () {},
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(Icons.menu_rounded,
-                      size: 22, color: AppColors.textSecondary),
-                ),
-              ),
-              const SizedBox(width: 12),
+              // GestureDetector(
+              //   onTap: () {},
+              //   child: const Padding(
+              //     padding: EdgeInsets.all(4),
+              //     child: Icon(Icons.menu_rounded,
+              //         size: 22, color: AppColors.textSecondary),
+              //   ),
+              // ),
+              // const SizedBox(width: 12),
               const Text(
                 'Attendance Manager',
                 style: TextStyle(
