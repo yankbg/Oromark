@@ -92,6 +92,7 @@ Stream<List<DetectedSession>> _discoveredSessionsStream() async* {
                 .toLocal(),
             lecturerIP: sessionData['lecturerIP'] as String,
             lecturerPort: sessionData['lecturerPort'] as int,
+            isLateFromBroadcast: sessionData['isLate'] as bool? ?? false,
           );
           final start = DateTime.parse(sessionData['startTime'] as String).toLocal();
           final end   = DateTime.parse(sessionData['endTime'] as String).toLocal();

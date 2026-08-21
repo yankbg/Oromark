@@ -17,6 +17,7 @@ class UdpService {
 
   // Store session data for re-broadcast on interval switch
   Map<String, dynamic>? _sessionData;
+  String? _broadcastAddress;
 
   Future<void> startListening(Function(Map<String, dynamic>) onSessionReceived) async{
     if(_isListening) return;
@@ -63,6 +64,10 @@ class UdpService {
     }
 
     try {
+      if (_sessionData != null) {
+        _sessionData!['isLate'] = true;  // ✅ Mark as late window
+        print('[UDP_SERVICE] ✅ Payload updated: isLate=true');
+      }
       // Cancel existing timer
       _timer?.cancel();
       _timer = null;
@@ -74,16 +79,17 @@ class UdpService {
       if (_sessionData != null) {
         String message = jsonEncode(_sessionData);
         List<int> data = utf8.encode(message);
-
+        print('[UDP_SERVICE] $_sessionData');
         _timer = Timer.periodic(
           Duration(seconds: _currentInterval),
               (timer) {
             try {
               _socket!.send(
                 data,
-                InternetAddress(NetworkConstants.broadcastAddress),
+                InternetAddress(_broadcastAddress!),
                 NetworkConstants.udpPort,
               );
+              print('[UDP_SERVICE] Later Windows $_broadcastAddress');
             } catch (e) {
               print('[UDP_SERVICE] Error broadcasting UDP packet (late interval): $e');
             }
@@ -114,6 +120,7 @@ class UdpService {
       String message = jsonEncode(sessionData);
       List<int> data = utf8.encode(message);
       final broadcastAddress = await getBroadcastAddress();
+      _broadcastAddress = await getBroadcastAddress();
 
       // Start periodic broadcast at PRESENT interval
       // _currentInterval = NetworkConstants.broadcastIntervalPresent;
@@ -126,7 +133,7 @@ class UdpService {
           try {
             _socket!.send(
               data,
-              InternetAddress(broadcastAddress),
+              InternetAddress(_broadcastAddress!),
               NetworkConstants.udpPort,
             );
           } catch (e) {
@@ -149,6 +156,7 @@ class UdpService {
   void stopBroadcasting() {
 
     try{
+      _broadcastAddress = null;
       _timer?.cancel();
       _timer = null;
       _socket?.close();

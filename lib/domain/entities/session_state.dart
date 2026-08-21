@@ -20,7 +20,7 @@ sealed class SessionState {
     required String roomCode,
     required DateTime presentCutoff,
     required DateTime lateCutoff,
-    bool inLateWindow = false,
+    bool isLate = false,
   }) =>
       _ActiveState(
         sessionId: sessionId,
@@ -28,7 +28,7 @@ sealed class SessionState {
         roomCode: roomCode,
         presentCutoff: presentCutoff,
         lateCutoff: lateCutoff,
-        inLateWindow: inLateWindow,
+        isLate: isLate,
       );
 
   /// Ended state
@@ -59,7 +59,7 @@ sealed class SessionState {
     String? roomCode,
     DateTime? presentCutoff,
     DateTime? lateCutoff,
-    bool? inLateWindow,
+    bool? isLate,
   }) {
     if (this is _ActiveState) {
       final current = this as _ActiveState;
@@ -69,7 +69,7 @@ sealed class SessionState {
         roomCode: roomCode ?? current.roomCode,
         presentCutoff: presentCutoff ?? current.presentCutoff,
         lateCutoff: lateCutoff ?? current.lateCutoff,
-        inLateWindow: inLateWindow ?? current.inLateWindow,
+        isLate: isLate ?? current.isLate,
       );
     }
     return this;
@@ -78,8 +78,8 @@ sealed class SessionState {
   @override
   String toString() => switch (this) {
     _IdleState() => 'SessionState.idle()',
-    _ActiveState(:final sessionId, :final courseCode, :final inLateWindow) =>
-    'SessionState.active(id=$sessionId, course=$courseCode, late=$inLateWindow)',
+    _ActiveState(:final sessionId, :final courseCode, :final isLate) =>
+    'SessionState.active(id=$sessionId, course=$courseCode, late=$isLate)',
     _EndedState() => 'SessionState.ended()',
   };
 }
@@ -96,7 +96,7 @@ class _ActiveState extends SessionState {
   final String roomCode;
   final DateTime presentCutoff;
   final DateTime lateCutoff;
-  final bool inLateWindow; // ✅ Track whether in late window
+  final bool isLate; // ✅ Track whether in late window
 
   const _ActiveState({
     required this.sessionId,
@@ -104,7 +104,7 @@ class _ActiveState extends SessionState {
     required this.roomCode,
     required this.presentCutoff,
     required this.lateCutoff,
-    this.inLateWindow = false,
+    this.isLate = false,
   });
 }
 

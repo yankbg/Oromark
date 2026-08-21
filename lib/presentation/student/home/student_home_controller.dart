@@ -29,6 +29,7 @@ class DetectedSession {
   final DateTime lateCutoff;
   final String lecturerIP;
   final int lecturerPort;
+  final bool isLateFromBroadcast;
 
   const DetectedSession({
     required this.sessionId,
@@ -41,9 +42,11 @@ class DetectedSession {
     required this.lateCutoff,
     required this.lecturerIP,
     required this.lecturerPort,
+    this.isLateFromBroadcast = false,
   });
 
   bool get isLate => DateTime.now().isAfter(presentCutoff);
+  // bool get isLate => isLateFromBroadcast;
 
   Duration get remaining {
     final cutoff = isLate ? lateCutoff : presentCutoff;

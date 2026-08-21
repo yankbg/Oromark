@@ -100,6 +100,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
           'lecturerPort': NetworkConstants.httpPort,
           'startTime': now.toIso8601String(),
           'endTime': lateCutoff.toIso8601String(),
+          'isLate': false,
         };
         print('[LECTURER] broadcast payload: $payload');
         print('[LECTURER] payload keys: ${payload.keys.toList()}');
@@ -269,7 +270,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
     }
     void switchToLateInterval() {
       final currentState = state;
-
+      if (!currentState.isActive) return;
       if (currentState.isIdle || currentState.isEnded) {
         print('[SESSION_NOTIFIER] Cannot switch to late interval: no active session');
         return;
@@ -280,7 +281,9 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
       //   return;
       // }
 
-      state = currentState.copyWith(inLateWindow: true);
+      // Update state to mark late window
+      state = currentState.copyWith(isLate: true);
+      // Tell UDP broadcaster to update payload and change interval
       ref.read(udpServiceProvider).switchToLateInterval();
 
       print('[SESSION_NOTIFIER] Switched to late interval');
