@@ -52,7 +52,8 @@ Future<void> main() async {
     ..post('/sync', _handleSync(pool))
     ..post('/auth/login', _rateLimited(_handleLogin(pool)))
     ..post('/auth/bootstrap-password', _handleBootstrapPassword(pool))
-    ..get('/lecturer/courses', _lecturerCourses(pool));
+    ..get('/lecturer/courses', _lecturerCourses(pool))
+    ..post('/admin/apply-schema', _applySchema(pool));
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
@@ -433,6 +434,114 @@ Handler _lecturerCourses(Session db) {
     }
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// POST /admin/apply-schema
+//
+// TEMPORARY, ONE-OFF: applies db/schema.sql directly against Neon. Added
+// because the admin dashboard's getDashboardStats() queries `sessions`
+// and `attendance_records` unconditionally, and those two tables were
+// apparently never created — schema.sql defines them but nothing had
+// ever run it against this database. Every statement here is idempotent
+// (`create table if not exists` / `create index if not exists`), so this
+// is safe to call more than once. Guarded by the same X-Api-Key as the
+// rest of the admin-facing routes. Remove this route once it's been run.
+Handler _applySchema(Session db) {
+  return (Request request) async {
+    final statements = _schemaSql
+        .split(';')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    final applied = <String>[];
+    try {
+      for (final stmt in statements) {
+        await db.execute(Sql.named(stmt));
+        applied.add(stmt.split('\n').first.trim());
+      }
+      return Response.ok(jsonEncode({'ok': true, 'applied': applied}));
+    } catch (e, st) {
+      stderr.writeln('Apply-schema error: $e\n$st');
+      return Response.internalServerError(
+        body: jsonEncode({'error': '$e', 'applied': applied}),
+      );
+    }
+  };
+}
+
+const _schemaSql = r'''
+create extension if not exists pgcrypto;
+
+create table if not exists courses (
+    id             bigserial primary key,
+    course_code    text unique not null,
+    course_name    text not null,
+    course_group   text,
+    enrolled       integer not null default 0,
+    avg_attendance integer not null default 0,
+    lecturer_id    text
+);
+
+create table if not exists lecturers (
+    id             bigserial primary key,
+    lecturer_id    text unique not null,
+    lecturer_name  text not null,
+    lecturer_email text not null,
+    department     text not null,
+    password_hash  text
+);
+
+create table if not exists students (
+    id             bigserial primary key,
+    student_id     text unique not null,
+    student_name   text not null,
+    student_email  text unique not null,
+    phone_number   text not null,
+    programme      text not null,
+    year_of_study  text not null,
+    avatar_url     text,
+    password_hash  text
+);
+
+create table if not exists enrolled_students (
+    id           bigserial primary key,
+    student_id   text not null,
+    course_code  text not null,
+    full_name    text not null,
+    unique (student_id, course_code)
+);
+
+create table if not exists sessions (
+    session_id      text primary key,
+    course_code     text not null,
+    course_name     text not null,
+    lecturer_name   text,
+    room_code       text not null,
+    start_time      timestamptz not null,
+    end_time        timestamptz not null,
+    present_cutoff  text,
+    late_cutoff     text,
+    status          text not null,
+    created_at      timestamptz not null,
+    synced_at       timestamptz not null default now()
+);
+
+create table if not exists attendance_records (
+    id           bigserial primary key,
+    session_id   text not null references sessions(session_id) on delete cascade,
+    student_id   text not null,
+    status       text not null,
+    "timestamp"  timestamptz not null,
+    synced_at    timestamptz not null default now(),
+    unique (session_id, student_id)
+);
+
+create index if not exists idx_attendance_session on attendance_records(session_id);
+create index if not exists idx_attendance_student on attendance_records(student_id);
+create index if not exists idx_sessions_course on sessions(course_code);
+create index if not exists idx_enrolled_course on enrolled_students(course_code);
+''';
 
 Handler _handleSync(Session db) {
   return (Request request) async {
