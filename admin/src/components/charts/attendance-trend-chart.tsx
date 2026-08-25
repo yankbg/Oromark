@@ -29,7 +29,7 @@ export function AttendanceTrendChart({
 
   return (
     <ChartContainer config={config} className="h-64 w-full">
-      <AreaChart data={data} margin={{ left: -16, right: 8, top: 8, bottom: 0 }}>
+      <AreaChart data={data} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
         <defs>
           <linearGradient id="fillPresent" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="var(--oro-present-text)" stopOpacity={0.25} />
@@ -45,7 +45,7 @@ export function AttendanceTrendChart({
           tickMargin={8}
           minTickGap={24}
         />
-        <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} width={32} />
+        <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} width={28} />
         <ChartTooltip
           content={<ChartTooltipContent labelFormatter={(l) => formatDay(String(l))} />}
         />
@@ -55,9 +55,26 @@ export function AttendanceTrendChart({
           stroke="var(--oro-present-text)"
           fill="url(#fillPresent)"
           strokeWidth={2}
+          isAnimationActive={false}
         />
-        <Area dataKey="late" type="monotone" stroke="var(--oro-late-text)" fill="none" strokeWidth={2} strokeDasharray="4 3" />
-        <Area dataKey="absent" type="monotone" stroke="var(--oro-absent-text)" fill="none" strokeWidth={2} strokeDasharray="2 2" />
+        <Area
+          dataKey="late"
+          type="monotone"
+          stroke="var(--oro-late-text)"
+          fill="none"
+          strokeWidth={2}
+          strokeDasharray="4 3"
+          isAnimationActive={false}
+        />
+        <Area
+          dataKey="absent"
+          type="monotone"
+          stroke="var(--oro-absent-text)"
+          fill="none"
+          strokeWidth={2}
+          strokeDasharray="2 2"
+          isAnimationActive={false}
+        />
       </AreaChart>
     </ChartContainer>
   );

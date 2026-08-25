@@ -72,7 +72,7 @@ export default async function OverviewPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div className="flex items-center gap-2">
               <ChartBarIcon className="size-4.5 text-muted-foreground" />
@@ -106,7 +106,7 @@ export default async function OverviewPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader className="flex flex-row items-center gap-2 space-y-0">
             <TrophyIcon className="size-4.5 text-muted-foreground" />
             <div>

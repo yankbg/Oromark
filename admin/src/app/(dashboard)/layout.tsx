@@ -32,7 +32,7 @@ export default async function DashboardLayout({
             </span>
           </header>
           <main className="flex-1 p-6 md:p-8">
-            <div className="mx-auto w-full max-w-6xl">{children}</div>
+            <div className="w-full">{children}</div>
           </main>
         </SidebarInset>
       </SidebarProvider>

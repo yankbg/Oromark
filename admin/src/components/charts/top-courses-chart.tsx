@@ -42,7 +42,7 @@ export function TopCoursesChart({
             />
           }
         />
-        <Bar dataKey="avgAttendance" radius={[0, 6, 6, 0]} maxBarSize={22}>
+        <Bar dataKey="avgAttendance" radius={[0, 6, 6, 0]} maxBarSize={22} isAnimationActive={false}>
           {data.map((entry, i) => (
             <Cell key={entry.courseCode} fill="var(--oro-primary)" fillOpacity={0.55 + (i / data.length) * 0.45} />
           ))}

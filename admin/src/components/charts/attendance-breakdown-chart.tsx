@@ -40,7 +40,16 @@ export function AttendanceBreakdownChart({
           <ChartTooltip
             content={<ChartTooltipContent hideLabel valueFormatter={(v) => `${v} (${Math.round((v / total) * 100)}%)`} />}
           />
-          <Pie data={data} dataKey="value" nameKey="key" innerRadius={62} outerRadius={92} strokeWidth={3} stroke="var(--card)">
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="key"
+            innerRadius={62}
+            outerRadius={92}
+            strokeWidth={3}
+            stroke="var(--card)"
+            isAnimationActive={false}
+          >
             {data.map((entry) => (
               <Cell key={entry.key} fill={entry.fill} />
             ))}

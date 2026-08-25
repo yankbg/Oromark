@@ -43,7 +43,7 @@ function ChartContainer({
       <div
         data-slot="chart"
         className={cn(
-          "[&_.recharts-cartesian-grid_line]:stroke-border [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-axis-tick_text]:text-xs [&_.recharts-layer]:outline-none [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none flex aspect-auto h-full w-full justify-center",
+          "[&_.recharts-cartesian-grid_line]:stroke-border [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-axis-tick_text]:text-xs [&_.recharts-layer]:outline-none [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none flex aspect-auto h-full w-full min-w-0 justify-center",
           className
         )}
         style={style as React.CSSProperties}

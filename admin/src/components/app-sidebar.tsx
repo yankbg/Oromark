@@ -37,8 +37,11 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" variant="inset">
-      <SidebarHeader className="px-4 pt-5 pb-3">
-        <Link href="/" className="flex items-center gap-3 px-1">
+      <SidebarHeader className="px-4 pt-5 pb-3 group-data-[collapsible=icon]:px-2">
+        <Link
+          href="/"
+          className="flex items-center gap-3 px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+        >
           <Image
             src="/oromark-icon.png"
             alt=""
@@ -94,12 +97,12 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="px-3 pb-4">
+      <SidebarFooter className="px-3 pb-4 group-data-[collapsible=icon]:px-2">
         <form action={logout}>
           <SidebarMenuButton
             type="submit"
             tooltip="Sign out"
-            className="h-10 rounded-lg px-3 text-sidebar-foreground/65 hover:bg-[color-mix(in_oklch,var(--oro-error),transparent_82%)] hover:text-white"
+            className="h-10 rounded-lg px-3 text-sidebar-foreground/65 group-data-[collapsible=icon]:mx-auto hover:bg-[color-mix(in_oklch,var(--oro-error),transparent_82%)] hover:text-white"
           >
             <ArrowRightStartOnRectangleIcon className="size-5" />
             <span className="text-sm font-medium">Sign out</span>
