@@ -12,6 +12,7 @@
 // read from .env.
 
 import 'dart:convert';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../database/app_database.dart';
@@ -61,6 +62,70 @@ class SyncService {
     } catch (e) {
       print('[SyncService] Password bootstrap skipped: $e');
       return false;
+    }
+  }
+
+  /// Pulls the given lecturer's courses (and each course's enrolled-student
+  /// roster) from Neon and caches them locally. This is the only direction
+  /// sync ever runs the other way — everywhere else the app only pushes
+  /// local SQLite up to Neon, so a course created straight in Neon via the
+  /// admin dashboard would otherwise never reach the lecturer's device.
+  /// Called once right after a successful network login. Best-effort: on
+  /// any failure, whatever's already cached locally is left untouched.
+  Future<void> pullLecturerData(String lecturerId) async {
+    final apiUrl = dotenv.env['SYNC_API_URL'];
+    final apiKey = dotenv.env['SYNC_API_KEY'];
+    if (apiUrl == null || apiUrl.isEmpty || apiKey == null || apiKey.isEmpty) {
+      return;
+    }
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$apiUrl/lecturer/courses').replace(
+              queryParameters: {'id': lecturerId},
+            ),
+            headers: {'X-Api-Key': apiKey},
+          )
+          .timeout(const Duration(seconds: 20));
+
+      if (response.statusCode != 200) {
+        print('[SyncService] Lecturer-courses pull failed: ${response.statusCode} ${response.body}');
+        return;
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final courses = (body['courses'] as List).cast<Map<String, dynamic>>();
+      final enrolledStudents = (body['enrolledStudents'] as List).cast<Map<String, dynamic>>();
+
+      for (final c in courses) {
+        await _db.upsertCourse(CoursesCompanion.insert(
+          courseCode: c['courseCode'] as String,
+          courseName: c['courseName'] as String,
+          group: Value(c['group'] as String?),
+          enrolled: Value(c['enrolled'] as int? ?? 0),
+          avgAttendance: Value(c['avgAttendance'] as int? ?? 0),
+          lecturerId: Value(c['lecturerId'] as String?),
+        ));
+      }
+
+      final rosterByCourse = <String, List<EnrolledStudentsCompanion>>{};
+      for (final e in enrolledStudents) {
+        final courseCode = e['courseCode'] as String;
+        rosterByCourse.putIfAbsent(courseCode, () => []).add(
+              EnrolledStudentsCompanion.insert(
+                studentId: e['studentId'] as String,
+                courseCode: courseCode,
+                fullName: e['fullName'] as String,
+              ),
+            );
+      }
+      for (final c in courses) {
+        final courseCode = c['courseCode'] as String;
+        await _db.replaceEnrolledStudents(courseCode, rosterByCourse[courseCode] ?? []);
+      }
+    } catch (e) {
+      print('[SyncService] Lecturer-courses pull skipped: $e');
     }
   }
 

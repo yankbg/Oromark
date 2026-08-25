@@ -252,6 +252,46 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<Course>> getAllCourses() => select(courses).get();
 
+  Future<List<Course>> getCoursesForLecturer(String lecturerId) {
+    return (select(courses)..where((c) => c.lecturerId.equals(lecturerId)))
+        .get();
+  }
+
+  /// Upserts a course pulled from Neon (courseCode is unique locally, so
+  /// this matches the existing row if one exists).
+  ///
+  /// Must target courseCode explicitly: courses.id is a meaningless local
+  /// autoincrement PK never supplied here, so insertOnConflictUpdate's
+  /// default (conflict on the PK) never fires — it would try to INSERT a
+  /// new row every time and crash with a UNIQUE constraint violation on
+  /// course_code whenever this course already exists locally (e.g. one of
+  /// the seeded demo courses).
+  Future<void> upsertCourse(CoursesCompanion entry) {
+    return into(courses).insert(
+      entry,
+      onConflict: DoUpdate((_) => entry, target: [courses.courseCode]),
+    );
+  }
+
+  /// Replaces the local roster for [courseCode] with [roster] pulled from
+  /// Neon. EnrolledStudents has no local uniqueness constraint to upsert
+  /// against, so — since Neon is authoritative for who's enrolled — the
+  /// simplest correct approach is to clear this course's local rows first,
+  /// then insert the fresh set, inside one transaction.
+  Future<void> replaceEnrolledStudents(
+    String courseCode,
+    List<EnrolledStudentsCompanion> roster,
+  ) async {
+    await transaction(() async {
+      await (delete(enrolledStudents)
+            ..where((e) => e.courseCode.equals(courseCode)))
+          .go();
+      if (roster.isNotEmpty) {
+        await batch((b) => b.insertAll(enrolledStudents, roster));
+      }
+    });
+  }
+
   Stream<List<Course>> watchAllCourses() => select(courses).watch();
 
   Future<Course?> getCourseByCode(String code) {
@@ -401,8 +441,18 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Upsert a profile row — called after a successful Supabase sync.
+  ///
+  /// Must target studentId explicitly: students.id is a meaningless local
+  /// autoincrement PK never supplied here, so insertOnConflictUpdate's
+  /// default (conflict on the PK) never fires — it would try to INSERT a
+  /// new row every time and crash with a UNIQUE constraint violation on
+  /// student_id/student_email whenever this student already has a local
+  /// row (e.g. one of the seeded demo students, or a prior login).
   Future<void> upsertStudentProfile(StudentsCompanion entry) {
-    return into(students).insertOnConflictUpdate(entry);
+    return into(students).insert(
+      entry,
+      onConflict: DoUpdate((_) => entry, target: [students.studentId]),
+    );
   }
 
   /// Returns the profile row for a lecturer, by lecturerId.
@@ -415,8 +465,18 @@ class AppDatabase extends _$AppDatabase {
   /// Upsert a lecturer profile row — called after a successful network
   /// login, so the profile is cached locally for offline-fallback logins
   /// and for the rest of the app's offline-capable screens.
+  ///
+  /// Must target lecturerId explicitly: lecturers.id is a meaningless local
+  /// autoincrement PK never supplied here, so insertOnConflictUpdate's
+  /// default (conflict on the PK) never fires — it would try to INSERT a
+  /// new row every time and crash with a UNIQUE constraint violation on
+  /// lecturer_id whenever this lecturer already has a local row (e.g. the
+  /// seeded demo lecturer, or a prior login).
   Future<void> upsertLecturerProfile(LecturersCompanion entry) {
-    return into(lecturers).insertOnConflictUpdate(entry);
+    return into(lecturers).insert(
+      entry,
+      onConflict: DoUpdate((_) => entry, target: [lecturers.lecturerId]),
+    );
   }
 
   /// Saves the Cloudinary URL of a student's profile picture. Any screen

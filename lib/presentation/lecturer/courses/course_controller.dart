@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/course_model.dart';
 import '../../../data/database/app_database.dart';
 import '../../../providers/app_database_provider.dart';
+import '../../../providers/auth_state_provider.dart';
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -91,7 +92,8 @@ class CourseListState {
 
 class CourseController extends StateNotifier<CourseListState> {
   final AppDatabase _db;
-  CourseController(this._db) : super(const CourseListState()) {
+  final Ref _ref;
+  CourseController(this._db, this._ref) : super(const CourseListState()) {
     loadCourses();
   }
 
@@ -99,18 +101,14 @@ class CourseController extends StateNotifier<CourseListState> {
   Future<void> loadCourses() async {
     state = state.copyWith(isLoading: true);
 
-    // Simulate network delay — remove when real API is connected
-    // await Future.delayed(const Duration(milliseconds: 600));
-
-    // TODO: replace with repository call, e.g.:
-    // final courses = await ref.read(courseRepositoryProvider).fetchForLecturer();
-    // state = state.copyWith(
-    //   courses:   _kMockCourses,
-    //   isLoading: false,
-    // );
     try {
-      // Fetch all courses from drift
-      final courses = await _db.getAllCourses();
+      // Only the courses assigned to the logged-in lecturer — not every
+      // course in local SQLite (that included every other lecturer's
+      // courses, e.g. the seeded ones, regardless of who was logged in).
+      final lecturerId = _ref.read(authStateNotifierProvider).value?.userId;
+      final courses = lecturerId == null
+          ? <Course>[]
+          : await _db.getCoursesForLecturer(lecturerId);
 
       // Convert Course (drift) → CourseModel (domain)
       final courseModels = courses.map((c) => CourseModel(
@@ -147,5 +145,5 @@ class CourseController extends StateNotifier<CourseListState> {
 
 final courseControllerProvider =
 StateNotifierProvider<CourseController, CourseListState>(
-      (ref) => CourseController(ref.watch(appDatabaseProvider)),
+      (ref) => CourseController(ref.watch(appDatabaseProvider), ref),
 );

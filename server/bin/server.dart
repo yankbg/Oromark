@@ -51,7 +51,8 @@ Future<void> main() async {
     ..get('/health', (Request req) => Response.ok('ok'))
     ..post('/sync', _handleSync(pool))
     ..post('/auth/login', _rateLimited(_handleLogin(pool)))
-    ..post('/auth/bootstrap-password', _handleBootstrapPassword(pool));
+    ..post('/auth/bootstrap-password', _handleBootstrapPassword(pool))
+    ..get('/lecturer/courses', _lecturerCourses(pool));
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
@@ -351,6 +352,83 @@ Handler _handleBootstrapPassword(Session db) {
       return Response.ok(jsonEncode({'ok': true, 'updated': result.affectedRows}));
     } catch (e, st) {
       stderr.writeln('Bootstrap-password error: $e\n$st');
+      return Response.internalServerError(body: jsonEncode({'error': '$e'}));
+    }
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// GET /lecturer/courses?id=<lecturerId>
+//
+// Sync so far has only ever pushed device SQLite -> Neon (SyncService,
+// POST /sync). Nothing ever came back down, so a course created straight
+// in Neon via the admin dashboard was invisible to the lecturer's phone
+// forever. This is the other direction: the app calls this right after a
+// lecturer logs in over the network, to pull down exactly the courses
+// assigned to them (plus each course's enrolled-student roster, since the
+// session-start screen needs enrollment counts) and cache them locally.
+//
+// The lecturer id is a query parameter rather than a path segment (the
+// previous /lecturer/<id>/courses shape) because lecturer ids use the
+// "IUEA/LEC/NNN" convention — a literal "/" inside a path segment is
+// fragile to route match even percent-encoded, and would 404 against
+// this exact server/router combination.
+Handler _lecturerCourses(Session db) {
+  return (Request request) async {
+    final id = request.url.queryParameters['id'];
+    if (id == null || id.isEmpty) {
+      return Response(400, body: jsonEncode({'error': 'id query parameter is required'}));
+    }
+    try {
+      final courseRows = await db.execute(
+        Sql.named('''
+          select course_code, course_name, course_group, enrolled, avg_attendance, lecturer_id
+          from courses
+          where lecturer_id = @id
+          order by course_code
+        '''),
+        parameters: {'id': id},
+      );
+
+      final courses = courseRows
+          .map((r) => {
+                'courseCode': r[0],
+                'courseName': r[1],
+                'group': r[2],
+                'enrolled': r[3],
+                'avgAttendance': r[4],
+                'lecturerId': r[5],
+              })
+          .toList();
+
+      final courseCodes = courses.map((c) => c['courseCode'] as String).toList();
+
+      List<Map<String, dynamic>> enrolledStudents = [];
+      if (courseCodes.isNotEmpty) {
+        final rosterRows = await db.execute(
+          Sql.named('''
+            select student_id, course_code, full_name
+            from enrolled_students
+            where course_code = any(@codes)
+          '''),
+          parameters: {'codes': TypedValue(Type.textArray, courseCodes)},
+        );
+        enrolledStudents = rosterRows
+            .map((r) => {
+                  'studentId': r[0],
+                  'courseCode': r[1],
+                  'fullName': r[2],
+                })
+            .toList();
+      }
+
+      return Response.ok(jsonEncode({
+        'ok': true,
+        'courses': courses,
+        'enrolledStudents': enrolledStudents,
+      }));
+    } catch (e, st) {
+      stderr.writeln('Lecturer-courses error: $e\n$st');
       return Response.internalServerError(body: jsonEncode({'error': '$e'}));
     }
   };

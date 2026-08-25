@@ -38,6 +38,12 @@ class LoginController extends _$LoginController {
       case _NetworkOutcome.success:
         final result = network.result!;
         await _cacheLocally(db, result, password);
+        if (result.department != null) {
+          // Lecturer login: pull their courses (and rosters) down from
+          // Neon now, so anything created via the admin dashboard shows up
+          // immediately instead of requiring a manual pull-to-refresh.
+          await SyncService(db).pullLecturerData(result.userId);
+        }
         return result;
 
       case _NetworkOutcome.wrongPassword:
@@ -111,11 +117,15 @@ class LoginController extends _$LoginController {
         password: plaintextPassword,
       ));
     } else {
+      // The server profile doesn't return a phone number, so preserve
+      // whatever this device already has cached for this student instead
+      // of overwriting it with an empty string on every login.
+      final existing = await db.getStudentProfile(result.userId);
       await db.upsertStudentProfile(StudentsCompanion.insert(
         studentId: result.userId,
         studentName: result.fullname,
         studentEmail: result.email,
-        phoneNumber: '', // not returned by the server profile; left as-is if a local row already had one
+        phoneNumber: existing?.phoneNumber ?? '',
         programme: result.program ?? '',
         yearOfStudy: result.yearOfStudy ?? '',
         password: plaintextPassword,
