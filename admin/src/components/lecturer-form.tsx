@@ -42,6 +42,12 @@ export function LecturerForm({
             required
           />
           <Field label="Department" name="department" defaultValue={lecturer?.department} required />
+          <Field
+            label={lecturer ? "Password (leave blank to keep current)" : "Password"}
+            name="password"
+            type="password"
+            required={!lecturer}
+          />
         </div>
 
         {state.error ? (

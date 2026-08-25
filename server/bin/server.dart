@@ -18,6 +18,8 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:dotenv/dotenv.dart';
 import 'package:postgres/postgres.dart';
 import 'package:shelf/shelf.dart';
@@ -47,7 +49,9 @@ Future<void> main() async {
 
   final router = Router()
     ..get('/health', (Request req) => Response.ok('ok'))
-    ..post('/sync', _handleSync(pool));
+    ..post('/sync', _handleSync(pool))
+    ..post('/auth/login', _rateLimited(_handleLogin(pool)))
+    ..post('/auth/bootstrap-password', _handleBootstrapPassword(pool));
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
@@ -82,12 +86,273 @@ Pool _openPool(String dbUrl) {
 Middleware _requireApiKey(String expected) {
   return (Handler inner) {
     return (Request request) async {
+      // /health is unauthenticated by design (uptime checks).
+      // /auth/login is the end-user login endpoint — it's not the app
+      // pushing sync data, so the sync API key doesn't apply there. It's
+      // protected instead by its own per-IP/per-account rate limiting
+      // (see _rateLimited / _handleLogin below).
       if (request.url.path == 'health') return inner(request);
+      if (request.url.path == 'auth/login') return inner(request);
       if (request.headers['x-api-key'] != expected) {
         return Response.forbidden(jsonEncode({'error': 'Invalid API key'}));
       }
       return inner(request);
     };
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Auth: POST /auth/login
+//
+// Real server-side login backed by Neon, replacing on-device-only SQLite
+// auth. Takes a student/lecturer id-or-email + password, checks it against
+// the bcrypt hash stored in Neon, and returns the user's profile plus an
+// opaque session token on success.
+//
+// Response shapes:
+//   200 {ok:true, role:'student'|'lecturer', profile:{...}, token:'...'}
+//   401 {error:'invalid_password'}   — account exists, password is wrong
+//   404 {error:'not_found'}          — no such student/lecturer in Neon yet
+//                                       (lets the app fall back to local
+//                                       SQLite for accounts that predate
+//                                       this feature, per the app-side logic)
+//   429 {error:'rate_limited'}       — too many attempts, try again later
+// ─────────────────────────────────────────────────────────────────────────
+
+// Simple in-memory sliding-window rate limiter, keyed by client IP + the
+// identifier being attempted (so one IP can't hammer one account, and
+// distributed attempts against many accounts from one IP are also capped).
+// This is a single-process server with no shared state store, so in-memory
+// is the pragmatic choice here — it resets on redeploy, which is fine for
+// brute-force mitigation purposes.
+class _RateLimiter {
+  final int maxAttempts;
+  final Duration window;
+  final _hits = <String, List<DateTime>>{};
+
+  _RateLimiter({required this.maxAttempts, required this.window});
+
+  bool allow(String key) {
+    final now = DateTime.now();
+    final hits = _hits.putIfAbsent(key, () => []);
+    hits.removeWhere((t) => now.difference(t) > window);
+    if (hits.length >= maxAttempts) return false;
+    hits.add(now);
+    return true;
+  }
+}
+
+final _loginRateLimiter = _RateLimiter(
+  maxAttempts: 8,
+  window: const Duration(minutes: 5),
+);
+
+Handler _rateLimited(Handler inner) {
+  return (Request request) async {
+    final ip = request.headers['x-forwarded-for']?.split(',').first.trim() ??
+        (request.context['shelf.io.connection_info'] as HttpConnectionInfo?)
+            ?.remoteAddress
+            .address ??
+        'unknown';
+
+    // Peek at the identifier being attempted without consuming the body
+    // twice — read it once here and re-attach it for the real handler.
+    final bodyStr = await request.readAsString();
+    Map<String, dynamic> body;
+    try {
+      body = jsonDecode(bodyStr) as Map<String, dynamic>;
+    } catch (_) {
+      body = {};
+    }
+    final identifier =
+        (body['id'] ?? body['email'] ?? body['studentId'] ?? body['lecturerId'] ?? '')
+            .toString()
+            .toLowerCase();
+
+    final key = '$ip::$identifier';
+    if (!_loginRateLimiter.allow(key) || !_loginRateLimiter.allow(ip)) {
+      return Response(
+        429,
+        body: jsonEncode({'error': 'rate_limited', 'message': 'Too many attempts. Try again later.'}),
+      );
+    }
+
+    final newRequest = request.change(body: bodyStr);
+    return inner(newRequest);
+  };
+}
+
+Handler _handleLogin(Session db) {
+  return (Request request) async {
+    final Map<String, dynamic> body;
+    try {
+      body = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+    } catch (e) {
+      return Response(400, body: jsonEncode({'error': 'Invalid JSON: $e'}));
+    }
+
+    final rawId = (body['id'] ?? body['studentId'] ?? body['lecturerId'] ?? body['email'])?.toString().trim();
+    final password = body['password']?.toString();
+    final roleHint = body['role']?.toString(); // 'student' | 'lecturer' | null
+
+    if (rawId == null || rawId.isEmpty || password == null || password.isEmpty) {
+      return Response(400, body: jsonEncode({'error': 'id and password are required'}));
+    }
+
+    try {
+      if (roleHint != 'lecturer') {
+        final rows = await db.execute(
+          Sql.named('''
+            select student_id, student_name, student_email, phone_number, programme, year_of_study, avatar_url, password_hash
+            from students
+            where student_id = @id or student_email = @id
+            limit 1
+          '''),
+          parameters: {'id': rawId},
+        );
+        if (rows.isNotEmpty) {
+          final row = rows.first;
+          final hash = row[7] as String?;
+          if (hash == null || hash.isEmpty) {
+            return Response(404, body: jsonEncode({'error': 'not_found', 'message': 'No password set for this account yet.'}));
+          }
+          if (!BCrypt.checkpw(password, hash)) {
+            return Response(401, body: jsonEncode({'error': 'invalid_password'}));
+          }
+          final token = _issueToken(role: 'student', id: row[0] as String);
+          return Response.ok(jsonEncode({
+            'ok': true,
+            'role': 'student',
+            'profile': {
+              'studentId': row[0],
+              'studentName': row[1],
+              'studentEmail': row[2],
+              'phoneNumber': row[3],
+              'programme': row[4],
+              'yearOfStudy': row[5],
+              'avatarUrl': row[6],
+            },
+            'token': token,
+          }));
+        }
+      }
+
+      if (roleHint != 'student') {
+        final rows = await db.execute(
+          Sql.named('''
+            select lecturer_id, lecturer_name, lecturer_email, department, password_hash
+            from lecturers
+            where lecturer_id = @id or lecturer_email = @id
+            limit 1
+          '''),
+          parameters: {'id': rawId},
+        );
+        if (rows.isNotEmpty) {
+          final row = rows.first;
+          final hash = row[4] as String?;
+          if (hash == null || hash.isEmpty) {
+            return Response(404, body: jsonEncode({'error': 'not_found', 'message': 'No password set for this account yet.'}));
+          }
+          if (!BCrypt.checkpw(password, hash)) {
+            return Response(401, body: jsonEncode({'error': 'invalid_password'}));
+          }
+          final token = _issueToken(role: 'lecturer', id: row[0] as String);
+          return Response.ok(jsonEncode({
+            'ok': true,
+            'role': 'lecturer',
+            'profile': {
+              'lecturerId': row[0],
+              'lecturerName': row[1],
+              'lecturerEmail': row[2],
+              'department': row[3],
+            },
+            'token': token,
+          }));
+        }
+      }
+
+      return Response(404, body: jsonEncode({'error': 'not_found'}));
+    } catch (e, st) {
+      stderr.writeln('Login error: $e\n$st');
+      return Response.internalServerError(body: jsonEncode({'error': '$e'}));
+    }
+  };
+}
+
+// Opaque session tokens: a random 32-byte hex string held in-memory with
+// an expiry. Simpler than wiring up JWT signing/verification for a single
+// small server, at the cost of tokens not surviving a redeploy — acceptable
+// for this app, where the token is a soft "stay logged in" convenience and
+// every screen's actual data access is already gated by local SQLite /
+// the LAN-only attendance flow, not by this token.
+final _tokens = <String, _TokenInfo>{};
+final _rand = Random.secure();
+
+class _TokenInfo {
+  final String role;
+  final String id;
+  final DateTime expiresAt;
+  _TokenInfo(this.role, this.id, this.expiresAt);
+}
+
+String _issueToken({required String role, required String id}) {
+  final bytes = List<int>.generate(32, (_) => _rand.nextInt(256));
+  final token = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  _tokens[token] = _TokenInfo(role, id, DateTime.now().add(const Duration(days: 30)));
+  return token;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// POST /auth/bootstrap-password
+//
+// Lets the app push a hash for an existing local-only account (the 4 seeded
+// students + 1 lecturer that only ever lived in on-device SQLite, from
+// before Neon had a password column at all) the first time that account
+// logs in successfully on-device. Guarded by the same X-Api-Key as /sync —
+// this is the app talking to its own backend, not an end-user login
+// attempt, so the login endpoint's separate rate limiting doesn't apply.
+//
+// Never overwrites an existing hash (e.g. one an admin set through the
+// dashboard) — only fills it in if it's currently null, so this can't be
+// used to hijack an account that already has a real password.
+// ─────────────────────────────────────────────────────────────────────────
+Handler _handleBootstrapPassword(Session db) {
+  return (Request request) async {
+    final Map<String, dynamic> body;
+    try {
+      body = jsonDecode(await request.readAsString()) as Map<String, dynamic>;
+    } catch (e) {
+      return Response(400, body: jsonEncode({'error': 'Invalid JSON: $e'}));
+    }
+
+    final role = body['role']?.toString();
+    final id = body['id']?.toString().trim();
+    final password = body['password']?.toString();
+
+    if (role != 'student' && role != 'lecturer') {
+      return Response(400, body: jsonEncode({'error': "role must be 'student' or 'lecturer'"}));
+    }
+    if (id == null || id.isEmpty || password == null || password.isEmpty) {
+      return Response(400, body: jsonEncode({'error': 'id and password are required'}));
+    }
+
+    final hash = BCrypt.hashpw(password, BCrypt.gensalt());
+
+    try {
+      final table = role == 'student' ? 'students' : 'lecturers';
+      final idCol = role == 'student' ? 'student_id' : 'lecturer_id';
+      final result = await db.execute(
+        Sql.named('''
+          update $table set password_hash = @hash
+          where $idCol = @id and password_hash is null
+        '''),
+        parameters: {'hash': hash, 'id': id},
+      );
+      return Response.ok(jsonEncode({'ok': true, 'updated': result.affectedRows}));
+    } catch (e, st) {
+      stderr.writeln('Bootstrap-password error: $e\n$st');
+      return Response.internalServerError(body: jsonEncode({'error': '$e'}));
+    }
   };
 }
 

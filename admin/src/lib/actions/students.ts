@@ -2,6 +2,7 @@
 
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 import type { Student } from "@/lib/types";
 
 export async function listStudents(query?: string): Promise<Student[]> {
@@ -36,10 +37,14 @@ function readStudentForm(formData: FormData) {
     phone_number: String(formData.get("phone_number") ?? "").trim(),
     programme: String(formData.get("programme") ?? "").trim(),
     year_of_study: String(formData.get("year_of_study") ?? "").trim(),
+    password: String(formData.get("password") ?? ""),
   };
 }
 
-function validateStudent(data: ReturnType<typeof readStudentForm>): string | null {
+function validateStudent(
+  data: ReturnType<typeof readStudentForm>,
+  { requirePassword }: { requirePassword: boolean }
+): string | null {
   if (!data.student_id) return "Student ID is required.";
   if (!data.student_name) return "Name is required.";
   if (!data.student_email || !data.student_email.includes("@"))
@@ -47,6 +52,8 @@ function validateStudent(data: ReturnType<typeof readStudentForm>): string | nul
   if (!data.phone_number) return "Phone number is required.";
   if (!data.programme) return "Programme is required.";
   if (!data.year_of_study) return "Year of study is required.";
+  if (requirePassword && !data.password) return "Password is required.";
+  if (data.password && data.password.length < 4) return "Password must be at least 4 characters.";
   return null;
 }
 
@@ -55,13 +62,18 @@ export async function createStudent(
   formData: FormData
 ): Promise<StudentFormState> {
   const data = readStudentForm(formData);
-  const error = validateStudent(data);
+  const error = validateStudent(data, { requirePassword: true });
   if (error) return { error };
+
+  // Hashed with bcrypt before it ever touches the database — the mobile
+  // app's sync server checks this same hash on POST /auth/login, so a
+  // dashboard-created student can log in on their phone immediately.
+  const passwordHash = await bcrypt.hash(data.password, 10);
 
   try {
     await sql`
-      insert into students (student_id, student_name, student_email, phone_number, programme, year_of_study)
-      values (${data.student_id}, ${data.student_name}, ${data.student_email}, ${data.phone_number}, ${data.programme}, ${data.year_of_study})
+      insert into students (student_id, student_name, student_email, phone_number, programme, year_of_study, password_hash)
+      values (${data.student_id}, ${data.student_name}, ${data.student_email}, ${data.phone_number}, ${data.programme}, ${data.year_of_study}, ${passwordHash})
     `;
   } catch (err) {
     return { error: dbErrorMessage(err, "student") };
@@ -77,20 +89,37 @@ export async function updateStudent(
   formData: FormData
 ): Promise<StudentFormState> {
   const data = readStudentForm(formData);
-  const error = validateStudent(data);
+  const error = validateStudent(data, { requirePassword: false });
   if (error) return { error };
 
   try {
-    await sql`
-      update students set
-        student_id = ${data.student_id},
-        student_name = ${data.student_name},
-        student_email = ${data.student_email},
-        phone_number = ${data.phone_number},
-        programme = ${data.programme},
-        year_of_study = ${data.year_of_study}
-      where student_id = ${originalStudentId}
-    `;
+    if (data.password) {
+      const passwordHash = await bcrypt.hash(data.password, 10);
+      await sql`
+        update students set
+          student_id = ${data.student_id},
+          student_name = ${data.student_name},
+          student_email = ${data.student_email},
+          phone_number = ${data.phone_number},
+          programme = ${data.programme},
+          year_of_study = ${data.year_of_study},
+          password_hash = ${passwordHash}
+        where student_id = ${originalStudentId}
+      `;
+    } else {
+      // Leave the existing password hash untouched when the field is left
+      // blank — the admin isn't required to reset a password on every edit.
+      await sql`
+        update students set
+          student_id = ${data.student_id},
+          student_name = ${data.student_name},
+          student_email = ${data.student_email},
+          phone_number = ${data.phone_number},
+          programme = ${data.programme},
+          year_of_study = ${data.year_of_study}
+        where student_id = ${originalStudentId}
+      `;
+    }
   } catch (err) {
     return { error: dbErrorMessage(err, "student") };
   }

@@ -55,6 +55,12 @@ export function StudentForm({
             defaultValue={student?.year_of_study}
             required
           />
+          <Field
+            label={student ? "Password (leave blank to keep current)" : "Password"}
+            name="password"
+            type="password"
+            required={!student}
+          />
         </div>
 
         {student?.avatar_url ? (

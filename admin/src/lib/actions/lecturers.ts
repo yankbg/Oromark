@@ -2,6 +2,7 @@
 
 import { sql } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 import type { Lecturer } from "@/lib/types";
 
 export async function listLecturers(query?: string): Promise<Lecturer[]> {
@@ -41,15 +42,21 @@ function readLecturerForm(formData: FormData) {
     lecturer_name: String(formData.get("lecturer_name") ?? "").trim(),
     lecturer_email: String(formData.get("lecturer_email") ?? "").trim(),
     department: String(formData.get("department") ?? "").trim(),
+    password: String(formData.get("password") ?? ""),
   };
 }
 
-function validateLecturer(data: ReturnType<typeof readLecturerForm>): string | null {
+function validateLecturer(
+  data: ReturnType<typeof readLecturerForm>,
+  { requirePassword }: { requirePassword: boolean }
+): string | null {
   if (!data.lecturer_id) return "Lecturer ID is required.";
   if (!data.lecturer_name) return "Name is required.";
   if (!data.lecturer_email || !data.lecturer_email.includes("@"))
     return "A valid email is required.";
   if (!data.department) return "Department is required.";
+  if (requirePassword && !data.password) return "Password is required.";
+  if (data.password && data.password.length < 4) return "Password must be at least 4 characters.";
   return null;
 }
 
@@ -58,13 +65,15 @@ export async function createLecturer(
   formData: FormData
 ): Promise<LecturerFormState> {
   const data = readLecturerForm(formData);
-  const error = validateLecturer(data);
+  const error = validateLecturer(data, { requirePassword: true });
   if (error) return { error };
+
+  const passwordHash = await bcrypt.hash(data.password, 10);
 
   try {
     await sql`
-      insert into lecturers (lecturer_id, lecturer_name, lecturer_email, department)
-      values (${data.lecturer_id}, ${data.lecturer_name}, ${data.lecturer_email}, ${data.department})
+      insert into lecturers (lecturer_id, lecturer_name, lecturer_email, department, password_hash)
+      values (${data.lecturer_id}, ${data.lecturer_name}, ${data.lecturer_email}, ${data.department}, ${passwordHash})
     `;
   } catch (err) {
     return { error: dbErrorMessage(err) };
@@ -81,19 +90,34 @@ export async function updateLecturer(
   formData: FormData
 ): Promise<LecturerFormState> {
   const data = readLecturerForm(formData);
-  const error = validateLecturer(data);
+  const error = validateLecturer(data, { requirePassword: false });
   if (error) return { error };
+
+  const passwordHash = data.password ? await bcrypt.hash(data.password, 10) : null;
 
   try {
     await sql.begin(async (tx) => {
-      await tx`
-        update lecturers set
-          lecturer_id = ${data.lecturer_id},
-          lecturer_name = ${data.lecturer_name},
-          lecturer_email = ${data.lecturer_email},
-          department = ${data.department}
-        where lecturer_id = ${originalLecturerId}
-      `;
+      if (passwordHash) {
+        await tx`
+          update lecturers set
+            lecturer_id = ${data.lecturer_id},
+            lecturer_name = ${data.lecturer_name},
+            lecturer_email = ${data.lecturer_email},
+            department = ${data.department},
+            password_hash = ${passwordHash}
+          where lecturer_id = ${originalLecturerId}
+        `;
+      } else {
+        // Blank password field on edit = leave the existing hash alone.
+        await tx`
+          update lecturers set
+            lecturer_id = ${data.lecturer_id},
+            lecturer_name = ${data.lecturer_name},
+            lecturer_email = ${data.lecturer_email},
+            department = ${data.department}
+          where lecturer_id = ${originalLecturerId}
+        `;
+      }
       if (originalLecturerId !== data.lecturer_id) {
         await tx`
           update courses set lecturer_id = ${data.lecturer_id}
