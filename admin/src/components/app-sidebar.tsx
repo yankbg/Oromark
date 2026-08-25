@@ -16,6 +16,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -42,30 +43,31 @@ export function AppSidebar() {
           href="/"
           className="flex items-center gap-3 px-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
-          <Image
-            src="/oromark-icon.png"
-            alt=""
-            width={32}
-            height={32}
-            className="shrink-0"
-          />
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Image
+              src="/oromark-icon.png"
+              alt=""
+              width={22}
+              height={22}
+              className="shrink-0"
+            />
+          </div>
           <div className="flex flex-col leading-none group-data-[collapsible=icon]:hidden">
             <span className="font-display text-lg font-semibold tracking-tight text-sidebar-foreground">
               OROmark
             </span>
-            <span className="mt-0.5 text-xs text-sidebar-foreground/60">
+            <span className="mt-0.5 text-xs text-sidebar-foreground/55">
               Attendance admin
             </span>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarSeparator className="mb-3 bg-sidebar-foreground/10" />
-
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5">
+            <SidebarMenu className="gap-1">
               {NAV_ITEMS.map((item) => {
                 const active =
                   item.href === "/"
@@ -78,10 +80,10 @@ export function AppSidebar() {
                       isActive={active}
                       tooltip={item.label}
                       className={cn(
-                        "h-10 rounded-lg px-3 text-sidebar-foreground/70 transition-colors",
+                        "h-10 rounded-lg px-3 text-sidebar-foreground/65 transition-colors",
                         "hover:bg-sidebar-accent hover:text-sidebar-foreground",
                         active &&
-                          "bg-primary text-white shadow-[0_1px_2px_0_rgb(16_24_21_/_0.08),0_6px_14px_-6px_rgb(15_110_86_/_0.45)] hover:bg-primary hover:text-white data-active:bg-primary data-active:text-white [&_svg]:text-white"
+                          "bg-primary/10 text-primary hover:bg-primary/10 hover:text-primary data-active:bg-primary/10 data-active:text-primary [&_svg]:text-primary"
                       )}
                     >
                       <Link href={item.href}>
@@ -97,12 +99,14 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
+      <SidebarSeparator className="mb-2 bg-sidebar-border" />
+
       <SidebarFooter className="px-3 pb-4 group-data-[collapsible=icon]:px-2">
         <form action={logout}>
           <SidebarMenuButton
             type="submit"
             tooltip="Sign out"
-            className="h-10 rounded-lg px-3 text-sidebar-foreground/65 group-data-[collapsible=icon]:mx-auto hover:bg-[color-mix(in_oklch,var(--oro-error),transparent_82%)] hover:text-white"
+            className="h-10 rounded-lg px-3 text-sidebar-foreground/60 group-data-[collapsible=icon]:mx-auto hover:bg-[color-mix(in_oklch,var(--oro-error),transparent_90%)] hover:text-[var(--oro-error)]"
           >
             <ArrowRightStartOnRectangleIcon className="size-5" />
             <span className="text-sm font-medium">Sign out</span>

@@ -86,13 +86,13 @@
   --input: var(--oro-border);
   --ring: var(--oro-primary);
 
-  --sidebar: var(--oro-tertiary);
-  --sidebar-foreground: #eef2f0;
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--oro-text-primary);
   --sidebar-primary: var(--oro-primary);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #4a5f59;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #4a5f59;
+  --sidebar-accent: var(--oro-bg-tertiary);
+  --sidebar-accent-foreground: var(--oro-text-primary);
+  --sidebar-border: var(--oro-border);
   --sidebar-ring: var(--oro-primary);
 
   --chart-1: var(--oro-primary);
