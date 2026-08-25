@@ -64,7 +64,11 @@ const EMPTY_BREAKDOWN: AttendanceBreakdown = { present: 0, late: 0, absent: 0 };
  * queries succeeded fine. Logs the failure server-side either way. */
 function settle<T>(result: PromiseSettledResult<T>, fallback: T): T {
   if (result.status === "fulfilled") return result.value;
-  console.error("[OverviewPage] a dashboard query failed:", result.reason);
+  // console.warn, not .error — this is a handled, non-fatal fallback (the
+  // page still renders fine, see the anyFailed banner below), and
+  // console.error would otherwise trip Next.js's dev-mode error overlay as
+  // if the page had crashed.
+  console.warn("[OverviewPage] a dashboard query failed, showing a fallback:", result.reason);
   return fallback;
 }
 
