@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listStudents } from "@/lib/actions/students";
+import { safeFetch } from "@/lib/safe-fetch";
 
 function initials(name: string) {
   return name
@@ -30,7 +31,7 @@ export default async function StudentsPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  const students = await listStudents(q);
+  const { data: students, failed } = await safeFetch(() => listStudents(q), []);
 
   return (
     <div>
@@ -46,6 +47,12 @@ export default async function StudentsPage({
           </Button>
         }
       />
+
+      {failed ? (
+        <div className="mb-4 rounded-lg border border-[var(--oro-warning)]/30 bg-[var(--oro-warning)]/10 px-4 py-2.5 text-sm text-[var(--oro-warning)]">
+          Couldn&apos;t load students just now — refresh to retry.
+        </div>
+      ) : null}
 
       <form className="mb-4 max-w-sm">
         <div className="relative">

@@ -28,7 +28,12 @@ const rawSql =
   postgres(connectionString, {
     ssl: "require",
     max: 10,
-    idle_timeout: 20,
+    // Was 20s — on a network where establishing a fresh connection is a
+    // coin-flip (see withConnectionRetry below), tearing pooled connections
+    // down that fast means almost every page navigation pays the flaky
+    // connect cost again. Keeping them alive for minutes instead means a
+    // session mostly reuses one already-working connection.
+    idle_timeout: 300,
     connect_timeout: 6,
   });
 
