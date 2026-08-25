@@ -13,8 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import 'session_controller.dart';
 import 'session_summary_stats.dart';
 
-class SessionSummaryScreen extends ConsumerWidget {
-  // [MOCK] — in production, pass sessionId and load from DB
+class SessionSummaryScreen extends ConsumerStatefulWidget {
   final SessionSummaryState state;
 
   const SessionSummaryScreen({
@@ -23,7 +22,33 @@ class SessionSummaryScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SessionSummaryScreen> createState() =>
+      _SessionSummaryScreenState();
+}
+
+class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen> {
+  late SessionSummaryState state = widget.state;
+
+  void _handleOverride(StudentEntry student, String newStatus) {
+    setState(() {
+      state = state.copyWith(
+        presentCount: newStatus == 'PRESENT'
+            ? state.presentCount + 1
+            : state.presentCount,
+        lateCount: newStatus == 'LATE'
+            ? state.lateCount + 1
+            : state.lateCount,
+        absentStudents: newStatus == 'ABSENT'
+            ? state.absentStudents
+            : state.absentStudents
+                .where((s) => s.studentId != student.studentId)
+                .toList(),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor:          Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -83,8 +108,10 @@ class SessionSummaryScreen extends ConsumerWidget {
 
           // ── Absent students section ───────────────────────────────
           AbsentStudentsSection(
+            sessionId:      state.sessionId,
             absentStudents: state.absentStudents,
             totalAbsent:    state.absentCount,
+            onOverride:     _handleOverride,
           ),
         ],
       ),
@@ -237,30 +264,33 @@ class _BottomActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    return Container(
+    return Material(
       color: AppColors.bgSecondary,
-      padding: EdgeInsets.only(
-        left:   16,
-        right:  16,
-        top:    16,
-        bottom: 16 + MediaQuery.of(context).padding.bottom,
-      ),
-      child: screenWidth < 600
-          ? _MobileLayout(
-        onExportPDF:  onExportPDF,
-        onExportCSV:  onExportCSV,
-        onNewSession: onNewSession,
-      )
-          : screenWidth < 1024
-          ? _TabletLayout(
-        onExportPDF:  onExportPDF,
-        onExportCSV:  onExportCSV,
-        onNewSession: onNewSession,
-      )
-          : _DesktopLayout(
-        onExportPDF:  onExportPDF,
-        onExportCSV:  onExportCSV,
-        onNewSession: onNewSession,
+      child: SafeArea(
+        top: false,
+        left: false,
+        right: false,
+        maintainBottomViewPadding: true,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          child: screenWidth < 600
+              ? _MobileLayout(
+            onExportPDF: onExportPDF,
+            onExportCSV: onExportCSV,
+            onNewSession: onNewSession,
+          )
+              : screenWidth < 1024
+              ? _TabletLayout(
+            onExportPDF: onExportPDF,
+            onExportCSV: onExportCSV,
+            onNewSession: onNewSession,
+          )
+              : _DesktopLayout(
+            onExportPDF: onExportPDF,
+            onExportCSV: onExportCSV,
+            onNewSession: onNewSession,
+          ),
+        ),
       ),
     );
   }

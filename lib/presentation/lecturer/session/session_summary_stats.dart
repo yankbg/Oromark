@@ -230,13 +230,17 @@ class StatCard extends StatelessWidget {
 // ── Absent students expandable section ─────────────────────────────────────────
 
 class AbsentStudentsSection extends StatefulWidget {
-  final List<StudentEntry> absentStudents;
-  final int                totalAbsent;
+  final String              sessionId;
+  final List<StudentEntry>  absentStudents;
+  final int                 totalAbsent;
+  final void Function(StudentEntry student, String newStatus) onOverride;
 
   const AbsentStudentsSection({
     super.key,
+    required this.sessionId,
     required this.absentStudents,
     required this.totalAbsent,
+    required this.onOverride,
   });
 
   @override
@@ -305,7 +309,11 @@ class _AbsentStudentsSectionState extends State<AbsentStudentsSection> {
 
           // Expandable list
           if (_expanded) ...[
-            ...displayedStudents.map((s) => _AbsentStudentRow(student: s)),
+            ...displayedStudents.map((s) => _AbsentStudentRow(
+              student: s,
+              sessionId: widget.sessionId,
+              onOverride: widget.onOverride,
+            )),
             if (remaining > 0)
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -330,7 +338,14 @@ class _AbsentStudentsSectionState extends State<AbsentStudentsSection> {
 
 class _AbsentStudentRow extends StatelessWidget {
   final StudentEntry student;
-  const _AbsentStudentRow({required this.student});
+  final String       sessionId;
+  final void Function(StudentEntry student, String newStatus) onOverride;
+
+  const _AbsentStudentRow({
+    required this.student,
+    required this.sessionId,
+    required this.onOverride,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -368,12 +383,18 @@ class _AbsentStudentRow extends StatelessWidget {
             ),
           ),
           TextButton.icon(
-            onPressed: () {
-              Navigator.of(context).push(
+            onPressed: () async {
+              final newStatus = await Navigator.of(context).push<String>(
                 MaterialPageRoute(
-                  builder: (_) => ManualOverrideScreen(student: student),
+                  builder: (_) => ManualOverrideScreen(
+                    student: student,
+                    sessionId: sessionId,
+                  ),
                 ),
               );
+              if (newStatus != null) {
+                onOverride(student, newStatus);
+              }
             },
             icon: const Icon(Icons.check_circle_rounded,
                 size: 18, color: AppColors.primary),

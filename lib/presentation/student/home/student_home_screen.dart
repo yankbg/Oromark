@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
   import 'package:oromark/presentation/student/profile/profile_screen.dart';
 import 'package:oromark/providers/app_database_provider.dart';
   import '../../../core/theme/app_colors.dart';
+  import '../../../core/widgets/student_avatar.dart';
   import '../../../providers/session_discovery_provider.dart';
   import '../../../providers/udp_service_provider.dart';
 import 'student_home_controller.dart';
@@ -41,55 +42,66 @@ import 'student_home_controller.dart';
       final db = ref.read(appDatabaseProvider);
       _controller = StudentHomeController(
         vsync: this,
-        udpService: udpService,
+        // udpService: udpService,
         database: db,
       )..addListener(() => setState(() {}));
-      udpService.startListening((sessionData) {
-        print('[UDP_SERVICE] session received: $sessionData');
-        print('[UDP_SERVICE] raw packet: $sessionData');
-        print('[UDP_SERVICE] keys: ${sessionData.keys.toList()}');
-
-        try {
-          final startTime = DateTime.parse(sessionData['startTime'] as String);
-          final endTime = DateTime.parse(sessionData['endTime'] as String);
-
-          final detected = DetectedSession(
-            sessionId: sessionData['sessionId'] as String,
-            courseCode: sessionData['courseCode'] as String,
-            courseName: sessionData['courseName'] as String,
-            lecturerName: 'Lecturer',
-            room: sessionData['roomCode'] as String,
-            roomCode: sessionData['roomCode'] as String,
-            presentCutoff: startTime,
-            lateCutoff: endTime,
-            lecturerIP: sessionData['lecturerIP'] as String,
-            lecturerPort: sessionData['lecturerPort'] as int,
-          );
-
-          if (mounted) {
-            _controller.selectSession(detected);
-          }
-        } catch (e) {
-          print('[UDP_SERVICE] error building detected session: $e');
-        }
-      });
+      // udpService.startListening((sessionData) {
+      //   print('[UDP_SERVICE] session received: $sessionData');
+      //   print('[UDP_SERVICE] raw packet: $sessionData');
+      //   print('[UDP_SERVICE] keys: ${sessionData.keys.toList()}');
+      //
+      //   print('[STUDENT] isLate=${sessionData['isLate']}, now=${DateTime.now()}, presentCutoff=${sessionData['presentCutoff']}');
+      //
+      //   try {
+      //     final startTime = DateTime.parse(sessionData['startTime'] as String);
+      //     final endTime = DateTime.parse(sessionData['endTime'] as String);
+      //
+      //     final detected = DetectedSession(
+      //       sessionId: sessionData['sessionId'] as String,
+      //       courseCode: sessionData['courseCode'] as String,
+      //       courseName: sessionData['courseName'] as String,
+      //       lecturerName: 'Lecturer',
+      //       room: sessionData['roomCode'] as String,
+      //       roomCode: sessionData['roomCode'] as String,
+      //       presentCutoff: startTime,
+      //       lateCutoff: endTime,
+      //       lecturerIP: sessionData['lecturerIP'] as String,
+      //       lecturerPort: sessionData['lecturerPort'] as int,
+      //     );
+      //
+      //     if (mounted) {
+      //       _controller.selectSession(detected);
+      //     }
+      //   } catch (e) {
+      //     print('[UDP_SERVICE] error building detected session: $e');
+      //   }
+      // });
     }
 
     @override
     void dispose() {
       final udpService = ref.read(udpServiceProvider);
-      udpService.stopListening();
+      // udpService.stopListening();
       _controller.dispose();
       super.dispose();
     }
 
     @override
     Widget build(BuildContext context) {
+      // Watch the kept-alive provider
+      final discoveredSessionsAsync = ref.watch(discoveredSessionsProvider);
+
+      // Update UI when sessions arrive
+      discoveredSessionsAsync.whenData((sessions) {
+        if (sessions.isNotEmpty && mounted) {
+          _controller.selectSession(sessions.first);  // Update controller
+        }
+      });
       return Scaffold(
         backgroundColor: AppColors.bgPrimary,
         body: Column(
           children: [
-            const _TopBar(userName: 'Alex'),
+            const _TopBar(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 32, 16, 96),
@@ -114,8 +126,12 @@ import 'student_home_controller.dart';
                               MaterialPageRoute(
                                 builder: (_) => ConfirmationScreen(
                                   session: _controller.session!,
-                                  onSubmit: (session, studentId) =>
-                                      _controller.submitAttendance(session: session, studentId: studentId),
+                                  onSubmit: (session, studentId, status) =>
+                                      _controller.recordConfirmedAttendance(
+                                        session: session,
+                                        studentId: studentId,
+                                        status: status,
+                                      ),
                                 ),
                               ),
                             );
@@ -154,8 +170,7 @@ import 'student_home_controller.dart';
   // Top bar
   // ─────────────────────────────────────────────────────────────────────────────
   class _TopBar extends StatelessWidget {
-    final String userName;
-    const _TopBar({required this.userName});
+    const _TopBar();
 
     @override
     Widget build(BuildContext context) {
@@ -186,26 +201,7 @@ import 'student_home_controller.dart';
                   ),
                 ),
                 const Spacer(),
-                // Avatar
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.primary.withOpacity(0.10),
-                    border: Border.all(color: AppColors.primary, width: 1.5),
-                  ),
-                  child: Center(
-                    child: Text(
-                      userName[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ),
+                const StudentAvatar(size: 34),
               ],
             ),
           ),

@@ -29,6 +29,7 @@ class DetectedSession {
   final DateTime lateCutoff;
   final String lecturerIP;
   final int lecturerPort;
+  final bool isLateFromBroadcast;
 
   const DetectedSession({
     required this.sessionId,
@@ -41,9 +42,15 @@ class DetectedSession {
     required this.lateCutoff,
     required this.lecturerIP,
     required this.lecturerPort,
+    this.isLateFromBroadcast = false,
   });
 
-  bool get isLate => DateTime.now().isAfter(presentCutoff);
+  // Trust the lecturer's broadcast instead of computing this from the
+  // present-window cutoff: the lecturer can manually switch to the late
+  // window early (session_controller.startLateWindow()), and a locally
+  // computed "now > presentCutoff" check has no way to see that early
+  // switch — it only flips once the original cutoff time has passed.
+  bool get isLate => isLateFromBroadcast;
 
   Duration get remaining {
     final cutoff = isLate ? lateCutoff : presentCutoff;
@@ -61,10 +68,9 @@ class DetectedSession {
 class StudentHomeController extends ChangeNotifier {
   StudentHomeController({
     required TickerProvider vsync,
-    required UdpService udpService,
+    // required UdpService udpService,
     AppDatabase? database,
-  }) : _db = database,
-        _udpService = udpService {
+  }) : _db = database{
     _initAnimations(vsync);
     // ✅ [UPDATED] Removed _startListening()
     // The discoveredSessionsProvider in lib/providers/ handles UDP listening now
@@ -72,7 +78,7 @@ class StudentHomeController extends ChangeNotifier {
   }
 
   final AppDatabase? _db;
-  final UdpService _udpService;
+  // final UdpService _udpService;
 
   // ── Public state ────────────────────────────────────────────────────────────
   DetectedSession? session;
@@ -137,15 +143,20 @@ class StudentHomeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Submit attendance via HTTP
-  /// Called from ConfirmationScreen after user confirms
-  Future<String> submitAttendance({
+  /// Persists a server-confirmed attendance result locally.
+  /// Called from ConfirmationScreen after its own POST to the lecturer's
+  /// server already succeeded and returned the authoritative status — this
+  /// does not make its own network call, it only writes to this device's DB.
+  Future<void> recordConfirmedAttendance({
     required DetectedSession session,
     required String studentId,
+    required String status,
   }) async {
     if (_db == null) {
       print('[StudentHomeController] Database not initialized');
-      return 'ERROR';
+      attendanceStatus = 'ERROR';
+      notifyListeners();
+      return;
     }
 
     try {
@@ -153,32 +164,35 @@ class StudentHomeController extends ChangeNotifier {
       submissionError = null;
       notifyListeners();
 
-      final service = AttendanceSubmissionService(_db!);
-      final status = await service.submitAttendance(
+      await AttendanceSubmissionService(_db!).persistConfirmedAttendance(
         session: session,
         studentId: studentId,
+        status: status,
       );
 
       isSubmitting = false;
       attendanceStatus = status;
       notifyListeners();
-
-      return status;
     } catch (e) {
       isSubmitting = false;
       submissionError = e.toString();
       attendanceStatus = 'ERROR';
       notifyListeners();
 
-      print('[StudentHomeController] Submission error: $e');
-      return 'ERROR';
+      print('[StudentHomeController] Failed to persist attendance locally: $e');
     }
   }
 
-  /// Select a discovered session
+  /// Select a discovered session.
+  /// Re-broadcasts of the same session (new UDP packets keep arriving while
+  /// the lecturer's session is active) must not reset `confirmed` — only a
+  /// genuinely different session should re-enable the Confirm button.
   void selectSession(DetectedSession detectedSession) {
+    final isNewSession = session?.sessionId != detectedSession.sessionId;
     session = detectedSession;
-    confirmed = false;
+    if (isNewSession) {
+      confirmed = false;
+    }
     notifyListeners();
   }
 

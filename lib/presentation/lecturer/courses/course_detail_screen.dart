@@ -71,10 +71,10 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: BottomNav(
-        selectedIndex: _navIndex,
-        onTap: _onNavTap,
-      ),
+      // bottomNavigationBar: BottomNav(
+      //   selectedIndex: _navIndex,
+      //   onTap: _onNavTap,
+      // ),
     );
   }
 }

@@ -109,10 +109,10 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNav(
-        selectedIndex: _navIndex,
-        onTap:         _onNavTap,
-      ),
+      // bottomNavigationBar: BottomNav(
+      //   selectedIndex: _navIndex,
+      //   onTap:         _onNavTap,
+      // ),
     );
   }
 }
@@ -163,18 +163,18 @@ class _TopBar extends StatelessWidget {
               child: Row(
                 children: [
                   // Hamburger — wire up Drawer later
-                  GestureDetector(
-                    onTap: () {},
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.menu_rounded,
-                        size:  22,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                  // GestureDetector(
+                  //   onTap: () {},
+                  //   child: const Padding(
+                  //     padding: EdgeInsets.all(4),
+                  //     child: Icon(
+                  //       Icons.menu_rounded,
+                  //       size:  22,
+                  //       color: AppColors.primary,
+                  //     ),
+                  //   ),
+                  // ),
+                  // const SizedBox(width: 12),
                   const Text(
                     'OROmark',
                     style: TextStyle(

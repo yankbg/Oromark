@@ -1,7 +1,9 @@
   //The most important provider
   import 'package:oromark/core/utils/room_code_generator.dart';
+import 'package:oromark/providers/attendance_submission_provider.dart';
   import 'package:uuid/uuid.dart';
-  
+  import 'dart:async';
+
   import '../core/constants/network_constants.dart';
   import '../domain/entities/session_state.dart';
   import '../data/database/app_database.dart';
@@ -15,8 +17,24 @@
   @riverpod
   
   class SessionNotifier extends _$SessionNotifier {
+    Timer? _presentIntervalTimer;
+    Timer? _lateIntervalTimer;
     @override
-    SessionState build() => SessionState.idle();
+    SessionState build() {
+      // This provider auto-disposes (e.g. when the screen watching it
+      // unmounts between sessions). Without this, a leaked timer from a
+      // disposed instance keeps running and later fires switchToLateInterval()
+      // against the shared UdpService/LocalAttendanceServer singletons,
+      // incorrectly flipping whatever session happens to be active at that
+      // moment to LATE — even one that just started.
+      ref.onDispose(() {
+        _presentIntervalTimer?.cancel();
+        _presentIntervalTimer = null;
+        _lateIntervalTimer?.cancel();
+        _lateIntervalTimer = null;
+      });
+      return SessionState.idle();
+    }
 
     /// Starts a new attendance session
     ///
@@ -30,8 +48,16 @@
     /// Throws: Exception if WiFi not connected
   
     Future<String> startSession(String courseCode, String courseName, {required String roomCode}) async {
+      print('[SESSION_NOTIFIER] startSession called: $courseCode - $courseName, room=$roomCode');
+      // ← ADD THESE 5 LINES (cancel old timers)
+      _presentIntervalTimer?.cancel();
+      _presentIntervalTimer = null;
+      _lateIntervalTimer?.cancel();
+      _lateIntervalTimer = null;
+      print('[SESSION_NOTIFIER] Cleaned up any previous timers');
       // final roomCode = roomCode;
       final sessionId = const Uuid().v4();
+      print('[SESSION_NOTIFIER] sessionId generated: $sessionId');
       final now = DateTime.now();
   
       final presentCutoff =
@@ -54,6 +80,7 @@
           state = SessionState.idle();
           throw Exception('Not connected to WiFi. Connect and try again.');
         }
+        print('[SESSION_NOTIFIER] inserting session into DB...');
         // CRITICAL FIX: Insert session record to database
         final db = ref.read(appDatabaseProvider);
         await db.insertSession(
@@ -68,6 +95,7 @@
             createdAt: now.millisecondsSinceEpoch, presentCutoff: '', lateCutoff: '',
           ),
         );
+        print('[SESSION_NOTIFIER] session inserted into DB');
 
         // Update notifier state
         state = SessionState.active(
@@ -86,29 +114,64 @@
           'lecturerPort': NetworkConstants.httpPort,
           'startTime': now.toIso8601String(),
           'endTime': lateCutoff.toIso8601String(),
+          'isLate': false,
         };
         print('[LECTURER] broadcast payload: $payload');
         print('[LECTURER] payload keys: ${payload.keys.toList()}');
         print('[LECTURER] port: ${NetworkConstants.udpPort}');
+
+        // Start HTTP server for this session
+        print('[SESSION_NOTIFIER] starting HTTP server...');
+        await ref.read(localAttendanceServerProvider).start(
+          sessionId: sessionId,
+          port: NetworkConstants.httpPort,
+          db: ref.read(appDatabaseProvider),
+          presentCutoff: presentCutoff,
+          lateCutoff: lateCutoff,
+        );
+        print('[SESSION_NOTIFIER] HTTP server started');
+
         // Start UDP broadcast (students auto-discover)
+        print('[SESSION_NOTIFIER] starting UDP broadcast...');
         await ref.read(udpServiceProvider).startBroadcasting(payload);
-        Future.delayed(Duration(minutes: NetworkConstants.presentMinutes), () {
-          // Correct check inside a Notifier
+        print('[SESSION_NOTIFIER] UDP broadcast started');
+
+        // Future.delayed(Duration(minutes: NetworkConstants.presentMinutes), () {
+        //   // Correct check inside a Notifier
+        //   if (state.isIdle || state.isEnded) return;
+        //   ref.read(udpServiceProvider).switchToLateInterval();
+        // });
+        _presentIntervalTimer = Timer(Duration(minutes: NetworkConstants.presentMinutes), () {
           if (state.isIdle || state.isEnded) return;
-          ref.read(udpServiceProvider).switchToLateInterval();
+          print('[SESSION_NOTIFIER] Present interval timer fired - switching to late interval');
+          // ref.read(udpServiceProvider).switchToLateInterval();
+          switchToLateInterval();
         });
 
-        Future.delayed(Duration(minutes: NetworkConstants.lateMinutes), () async {
-          if (state.isEnded) return;
-          await endSession();
-        });
+        // Future.delayed(Duration(minutes: NetworkConstants.lateMinutes), () async {
+        //   if (state.isEnded) return;
+        //   await endSession();
+        // });
 
+        // _lateIntervalTimer = Timer(Duration(minutes: NetworkConstants.lateMinutes), () async {
+        //   if (state.isEnded) return;
+        //   print('[SESSION_NOTIFIER] Late interval timer fired - auto-ending session');
+        //   await endSession();
+        // });
+        print('[SESSION_NOTIFIER] UDP broadcast started');
         return sessionId;
-      }catch(e){
+      }catch(e, st){
+        _presentIntervalTimer?.cancel();
+        _presentIntervalTimer = null;
+        _lateIntervalTimer?.cancel();
+        _lateIntervalTimer = null;
+        print('[SESSION_NOTIFIER] Cancelled timers due to error');
           // Cleanup on error
           state = SessionState.idle();
           await ref.read(httpServerProvider).stopServer();
           ref.read(udpServiceProvider).stopBroadcasting();
+          print('[SESSION_NOTIFIER] startSession error: $e');
+          print('[SESSION_NOTIFIER] stack trace: $st');
           rethrow;
 
       }
@@ -125,9 +188,15 @@
   
     Future<void> endSession() async {
       try{
+        _presentIntervalTimer?.cancel();
+        _presentIntervalTimer = null;
+        _lateIntervalTimer?.cancel();
+        _lateIntervalTimer = null;
+        print('[SESSION_NOTIFIER] Cancelled scheduled timers on session end');
         // Stop advertising new submissions
         ref.read(udpServiceProvider).stopBroadcasting();
         await ref.read(httpServerProvider).stopServer();
+        await ref.read(localAttendanceServerProvider).stop();
 
         // Compute and insert absent records
         await _computeAbsent();
@@ -212,5 +281,28 @@
       //     );
       //   }
       // }
+    }
+    void switchToLateInterval() {
+      final currentState = state;
+      if (!currentState.isActive) return;
+      if (currentState.isIdle || currentState.isEnded) {
+        print('[SESSION_NOTIFIER] Cannot switch to late interval: no active session');
+        return;
+      }
+
+      // if (currentState.inLateWindow) {
+      //   print('[SESSION_NOTIFIER] Already in late interval');
+      //   return;
+      // }
+
+      // Update state to mark late window
+      state = currentState.copyWith(isLate: true);
+      // Tell UDP broadcaster to update payload and change interval
+      ref.read(udpServiceProvider).switchToLateInterval();
+      // Also pull the HTTP server's present cutoff to now, so a submission
+      // arriving after this point is graded LATE instead of PRESENT.
+      ref.read(localAttendanceServerProvider).markLateNow();
+
+      print('[SESSION_NOTIFIER] Switched to late interval');
     }
   }

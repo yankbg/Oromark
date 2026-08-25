@@ -119,8 +119,23 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
     //   });
     // }
     if (confirmed == true && mounted) {
+      await ref
+          .read(sessionNotifierProvider.notifier)
+          .endSession();
+
+      ref.invalidate(
+        sessionControllerProvider(
+          (
+          sessionId: params.sessionId,
+          courseCode: params.courseCode,
+          courseName: params.courseName,
+          enrolled: params.enrolled,
+          ),
+        ),
+      );
       // [MOCK] — replace with real sessionNotifier.endSession()
       final summary = SessionSummaryState(
+        sessionId: params.sessionId,
         courseCode: state.courseCode,
         courseName: state.courseName,
         startedAt: state.startedAt,
@@ -203,10 +218,10 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
       ),
       floatingActionButtonLocation:
       FloatingActionButtonLocation.endDocked,
-      bottomNavigationBar: _BottomNav(
-        selectedIndex: _navIndex,
-        onTap: (i) => setState(() => _navIndex = i),
-      ),
+      // bottomNavigationBar: _BottomNav(
+      //   selectedIndex: _navIndex,
+      //   onTap: (i) => setState(() => _navIndex = i),
+      // ),
     );
   }
 }
@@ -229,15 +244,15 @@ class _TopBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              GestureDetector(
-                onTap: () {},
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(Icons.menu_rounded,
-                      size: 22, color: AppColors.textSecondary),
-                ),
-              ),
-              const SizedBox(width: 12),
+              // GestureDetector(
+              //   onTap: () {},
+              //   child: const Padding(
+              //     padding: EdgeInsets.all(4),
+              //     child: Icon(Icons.menu_rounded,
+              //         size: 22, color: AppColors.textSecondary),
+              //   ),
+              // ),
+              // const SizedBox(width: 12),
               const Text(
                 'Attendance Manager',
                 style: TextStyle(
