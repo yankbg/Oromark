@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
   import 'package:oromark/presentation/student/profile/profile_screen.dart';
 import 'package:oromark/providers/app_database_provider.dart';
   import '../../../core/theme/app_colors.dart';
+  import '../../../core/widgets/student_avatar.dart';
   import '../../../providers/session_discovery_provider.dart';
   import '../../../providers/udp_service_provider.dart';
 import 'student_home_controller.dart';
@@ -100,7 +101,7 @@ import 'student_home_controller.dart';
         backgroundColor: AppColors.bgPrimary,
         body: Column(
           children: [
-            const _TopBar(userName: 'Alex'),
+            const _TopBar(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 32, 16, 96),
@@ -125,8 +126,12 @@ import 'student_home_controller.dart';
                               MaterialPageRoute(
                                 builder: (_) => ConfirmationScreen(
                                   session: _controller.session!,
-                                  onSubmit: (session, studentId) =>
-                                      _controller.submitAttendance(session: session, studentId: studentId),
+                                  onSubmit: (session, studentId, status) =>
+                                      _controller.recordConfirmedAttendance(
+                                        session: session,
+                                        studentId: studentId,
+                                        status: status,
+                                      ),
                                 ),
                               ),
                             );
@@ -165,8 +170,7 @@ import 'student_home_controller.dart';
   // Top bar
   // ─────────────────────────────────────────────────────────────────────────────
   class _TopBar extends StatelessWidget {
-    final String userName;
-    const _TopBar({required this.userName});
+    const _TopBar();
 
     @override
     Widget build(BuildContext context) {
@@ -197,26 +201,7 @@ import 'student_home_controller.dart';
                   ),
                 ),
                 const Spacer(),
-                // Avatar
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.primary.withOpacity(0.10),
-                    border: Border.all(color: AppColors.primary, width: 1.5),
-                  ),
-                  child: Center(
-                    child: Text(
-                      userName[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ),
+                const StudentAvatar(size: 34),
               ],
             ),
           ),

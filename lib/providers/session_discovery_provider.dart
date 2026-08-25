@@ -24,6 +24,24 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/core/constants/network_constants.dart';
 import 'package:oromark/presentation/student/home/student_home_controller.dart';
+import 'package:oromark/data/database/app_database.dart';
+import 'app_database_provider.dart';
+import 'auth_state_provider.dart';
+
+/// Looks up whether the logged-in student already has an attendance record
+/// for [sessionId] — used to disable an already-confirmed session tile in
+/// the discovery sheet.
+final attendanceRecordProvider =
+    FutureProvider.family<AttendanceRecord?, String>((ref, sessionId) async {
+      final authResult = ref.watch(authStateNotifierProvider).value;
+      if (authResult == null) return null;
+
+      final db = ref.watch(appDatabaseProvider);
+      return db.getAttendanceRecord(
+        sessionId: sessionId,
+        studentId: authResult.userId,
+      );
+    });
 
 /// Provides the UDP service singleton for session discovery
 final sessionUdpServiceProvider = Provider<RawDatagramSocket?>((_) => null);
@@ -44,14 +62,12 @@ final sessionUdpServiceProvider = Provider<RawDatagramSocket?>((_) => null);
 ///
 /// Sessions expire automatically (checked in UI via session.remaining)
 
-final discoveredSessionsProvider =
-StreamProvider<List<DetectedSession>>((ref) {
-  ref.keepAlive();  // Keep alive across navigation ← NEW
-  return _discoveredSessionsStream();  // Extracted into helper function ← NEW
+final discoveredSessionsProvider = StreamProvider<List<DetectedSession>>((ref) {
+  ref.keepAlive(); // Keep alive across navigation ← NEW
+  return _discoveredSessionsStream(); // Extracted into helper function ← NEW
 });
 
 Stream<List<DetectedSession>> _discoveredSessionsStream() async* {
-
   RawDatagramSocket? socket;
   final sessions = <String, DetectedSession>{};
 
@@ -62,7 +78,9 @@ Stream<List<DetectedSession>> _discoveredSessionsStream() async* {
       NetworkConstants.udpPort,
     );
 
-    print('[DiscoveryProvider] UDP listener started on port ${NetworkConstants.udpPort}');
+    print(
+      '[DiscoveryProvider] UDP listener started on port ${NetworkConstants.udpPort}',
+    );
 
     // ── Listen for incoming broadcasts ────────────────────────────────────
     await for (final event in socket) {
@@ -84,35 +102,47 @@ Stream<List<DetectedSession>> _discoveredSessionsStream() async* {
             courseName: sessionData['courseName'] as String,
             lecturerName: 'lecturer',
             room: sessionData['roomCode'] as String,
-            roomCode: sessionData['roomCode'] as String, // [SENSITIVE] only shown to lecturer
+            roomCode:
+                sessionData['roomCode']
+                    as String, // [SENSITIVE] only shown to lecturer
             presentCutoff: DateTime.parse(sessionData['startTime'] as String)
                 .toLocal()
-                .add(const Duration(minutes: NetworkConstants.presentMinutes)), // or whatever your present window is
-            lateCutoff: DateTime.parse(sessionData['endTime'] as String)
-                .toLocal(),
+                .add(
+                  const Duration(minutes: NetworkConstants.presentMinutes),
+                ), // or whatever your present window is
+            lateCutoff: DateTime.parse(
+              sessionData['endTime'] as String,
+            ).toLocal(),
             lecturerIP: sessionData['lecturerIP'] as String,
             lecturerPort: sessionData['lecturerPort'] as int,
             isLateFromBroadcast: sessionData['isLate'] as bool? ?? false,
           );
-          final start = DateTime.parse(sessionData['startTime'] as String).toLocal();
-          final end   = DateTime.parse(sessionData['endTime'] as String).toLocal();
+          final start = DateTime.parse(
+            sessionData['startTime'] as String,
+          ).toLocal();
+          final end = DateTime.parse(
+            sessionData['endTime'] as String,
+          ).toLocal();
           final presentCutoff = start.add(const Duration(minutes: 10));
 
-          print('[DiscoveryProvider] start=$start, presentCutoff=$presentCutoff, end=$end, now=${DateTime.now()}');
+          print(
+            '[DiscoveryProvider] start=$start, presentCutoff=$presentCutoff, end=$end, now=${DateTime.now()}',
+          );
 
           // ── Update sessions map & emit ───────────────────────────────
           sessions[detected.sessionId] = detected;
 
           // Yield the full current list of sessions
           // Listeners will see all active sessions, sorted by remaining time
-          final sorted = sessions.values
-              .toList()
+          final sorted = sessions.values.toList()
             ..sort((a, b) => b.remaining.compareTo(a.remaining));
 
           yield sorted;
 
-          print('[DiscoveryProvider] Broadcast received: ${detected.courseCode} '
-              'from ${detected.lecturerName} (code: ${detected.roomCode})');
+          print(
+            '[DiscoveryProvider] Broadcast received: ${detected.courseCode} '
+            'from ${detected.lecturerName} (code: ${detected.roomCode})',
+          );
         } catch (e) {
           print('[DiscoveryProvider] Error parsing UDP packet: $e');
           // Continue listening; one bad packet shouldn't crash the stream

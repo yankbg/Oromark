@@ -135,6 +135,7 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
       );
       // [MOCK] — replace with real sessionNotifier.endSession()
       final summary = SessionSummaryState(
+        sessionId: params.sessionId,
         courseCode: state.courseCode,
         courseName: state.courseName,
         startedAt: state.startedAt,

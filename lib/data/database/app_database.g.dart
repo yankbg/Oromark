@@ -1556,6 +1556,17 @@ class $StudentsTable extends Students with TableInfo<$StudentsTable, Student> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _avatarUrlMeta = const VerificationMeta(
+    'avatarUrl',
+  );
+  @override
+  late final GeneratedColumn<String> avatarUrl = GeneratedColumn<String>(
+    'avatar_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1566,6 +1577,7 @@ class $StudentsTable extends Students with TableInfo<$StudentsTable, Student> {
     programme,
     yearOfStudy,
     password,
+    avatarUrl,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1650,6 +1662,12 @@ class $StudentsTable extends Students with TableInfo<$StudentsTable, Student> {
     } else if (isInserting) {
       context.missing(_passwordMeta);
     }
+    if (data.containsKey('avatar_url')) {
+      context.handle(
+        _avatarUrlMeta,
+        avatarUrl.isAcceptableOrUnknown(data['avatar_url']!, _avatarUrlMeta),
+      );
+    }
     return context;
   }
 
@@ -1691,6 +1709,10 @@ class $StudentsTable extends Students with TableInfo<$StudentsTable, Student> {
         DriftSqlType.string,
         data['${effectivePrefix}password'],
       )!,
+      avatarUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}avatar_url'],
+      ),
     );
   }
 
@@ -1709,6 +1731,7 @@ class Student extends DataClass implements Insertable<Student> {
   final String programme;
   final String yearOfStudy;
   final String password;
+  final String? avatarUrl;
   const Student({
     required this.id,
     required this.studentId,
@@ -1718,6 +1741,7 @@ class Student extends DataClass implements Insertable<Student> {
     required this.programme,
     required this.yearOfStudy,
     required this.password,
+    this.avatarUrl,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1730,6 +1754,9 @@ class Student extends DataClass implements Insertable<Student> {
     map['programme'] = Variable<String>(programme);
     map['year_of_study'] = Variable<String>(yearOfStudy);
     map['password'] = Variable<String>(password);
+    if (!nullToAbsent || avatarUrl != null) {
+      map['avatar_url'] = Variable<String>(avatarUrl);
+    }
     return map;
   }
 
@@ -1743,6 +1770,9 @@ class Student extends DataClass implements Insertable<Student> {
       programme: Value(programme),
       yearOfStudy: Value(yearOfStudy),
       password: Value(password),
+      avatarUrl: avatarUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(avatarUrl),
     );
   }
 
@@ -1760,6 +1790,7 @@ class Student extends DataClass implements Insertable<Student> {
       programme: serializer.fromJson<String>(json['programme']),
       yearOfStudy: serializer.fromJson<String>(json['yearOfStudy']),
       password: serializer.fromJson<String>(json['password']),
+      avatarUrl: serializer.fromJson<String?>(json['avatarUrl']),
     );
   }
   @override
@@ -1774,6 +1805,7 @@ class Student extends DataClass implements Insertable<Student> {
       'programme': serializer.toJson<String>(programme),
       'yearOfStudy': serializer.toJson<String>(yearOfStudy),
       'password': serializer.toJson<String>(password),
+      'avatarUrl': serializer.toJson<String?>(avatarUrl),
     };
   }
 
@@ -1786,6 +1818,7 @@ class Student extends DataClass implements Insertable<Student> {
     String? programme,
     String? yearOfStudy,
     String? password,
+    Value<String?> avatarUrl = const Value.absent(),
   }) => Student(
     id: id ?? this.id,
     studentId: studentId ?? this.studentId,
@@ -1795,6 +1828,7 @@ class Student extends DataClass implements Insertable<Student> {
     programme: programme ?? this.programme,
     yearOfStudy: yearOfStudy ?? this.yearOfStudy,
     password: password ?? this.password,
+    avatarUrl: avatarUrl.present ? avatarUrl.value : this.avatarUrl,
   );
   Student copyWithCompanion(StudentsCompanion data) {
     return Student(
@@ -1814,6 +1848,7 @@ class Student extends DataClass implements Insertable<Student> {
           ? data.yearOfStudy.value
           : this.yearOfStudy,
       password: data.password.present ? data.password.value : this.password,
+      avatarUrl: data.avatarUrl.present ? data.avatarUrl.value : this.avatarUrl,
     );
   }
 
@@ -1827,7 +1862,8 @@ class Student extends DataClass implements Insertable<Student> {
           ..write('phoneNumber: $phoneNumber, ')
           ..write('programme: $programme, ')
           ..write('yearOfStudy: $yearOfStudy, ')
-          ..write('password: $password')
+          ..write('password: $password, ')
+          ..write('avatarUrl: $avatarUrl')
           ..write(')'))
         .toString();
   }
@@ -1842,6 +1878,7 @@ class Student extends DataClass implements Insertable<Student> {
     programme,
     yearOfStudy,
     password,
+    avatarUrl,
   );
   @override
   bool operator ==(Object other) =>
@@ -1854,7 +1891,8 @@ class Student extends DataClass implements Insertable<Student> {
           other.phoneNumber == this.phoneNumber &&
           other.programme == this.programme &&
           other.yearOfStudy == this.yearOfStudy &&
-          other.password == this.password);
+          other.password == this.password &&
+          other.avatarUrl == this.avatarUrl);
 }
 
 class StudentsCompanion extends UpdateCompanion<Student> {
@@ -1866,6 +1904,7 @@ class StudentsCompanion extends UpdateCompanion<Student> {
   final Value<String> programme;
   final Value<String> yearOfStudy;
   final Value<String> password;
+  final Value<String?> avatarUrl;
   const StudentsCompanion({
     this.id = const Value.absent(),
     this.studentId = const Value.absent(),
@@ -1875,6 +1914,7 @@ class StudentsCompanion extends UpdateCompanion<Student> {
     this.programme = const Value.absent(),
     this.yearOfStudy = const Value.absent(),
     this.password = const Value.absent(),
+    this.avatarUrl = const Value.absent(),
   });
   StudentsCompanion.insert({
     this.id = const Value.absent(),
@@ -1885,6 +1925,7 @@ class StudentsCompanion extends UpdateCompanion<Student> {
     required String programme,
     required String yearOfStudy,
     required String password,
+    this.avatarUrl = const Value.absent(),
   }) : studentId = Value(studentId),
        studentName = Value(studentName),
        studentEmail = Value(studentEmail),
@@ -1901,6 +1942,7 @@ class StudentsCompanion extends UpdateCompanion<Student> {
     Expression<String>? programme,
     Expression<String>? yearOfStudy,
     Expression<String>? password,
+    Expression<String>? avatarUrl,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1911,6 +1953,7 @@ class StudentsCompanion extends UpdateCompanion<Student> {
       if (programme != null) 'programme': programme,
       if (yearOfStudy != null) 'year_of_study': yearOfStudy,
       if (password != null) 'password': password,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
     });
   }
 
@@ -1923,6 +1966,7 @@ class StudentsCompanion extends UpdateCompanion<Student> {
     Value<String>? programme,
     Value<String>? yearOfStudy,
     Value<String>? password,
+    Value<String?>? avatarUrl,
   }) {
     return StudentsCompanion(
       id: id ?? this.id,
@@ -1933,6 +1977,7 @@ class StudentsCompanion extends UpdateCompanion<Student> {
       programme: programme ?? this.programme,
       yearOfStudy: yearOfStudy ?? this.yearOfStudy,
       password: password ?? this.password,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 
@@ -1963,6 +2008,9 @@ class StudentsCompanion extends UpdateCompanion<Student> {
     if (password.present) {
       map['password'] = Variable<String>(password.value);
     }
+    if (avatarUrl.present) {
+      map['avatar_url'] = Variable<String>(avatarUrl.value);
+    }
     return map;
   }
 
@@ -1976,7 +2024,8 @@ class StudentsCompanion extends UpdateCompanion<Student> {
           ..write('phoneNumber: $phoneNumber, ')
           ..write('programme: $programme, ')
           ..write('yearOfStudy: $yearOfStudy, ')
-          ..write('password: $password')
+          ..write('password: $password, ')
+          ..write('avatarUrl: $avatarUrl')
           ..write(')'))
         .toString();
   }
@@ -3659,6 +3708,7 @@ typedef $$StudentsTableCreateCompanionBuilder =
       required String programme,
       required String yearOfStudy,
       required String password,
+      Value<String?> avatarUrl,
     });
 typedef $$StudentsTableUpdateCompanionBuilder =
     StudentsCompanion Function({
@@ -3670,6 +3720,7 @@ typedef $$StudentsTableUpdateCompanionBuilder =
       Value<String> programme,
       Value<String> yearOfStudy,
       Value<String> password,
+      Value<String?> avatarUrl,
     });
 
 class $$StudentsTableFilterComposer
@@ -3718,6 +3769,11 @@ class $$StudentsTableFilterComposer
 
   ColumnFilters<String> get password => $composableBuilder(
     column: $table.password,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get avatarUrl => $composableBuilder(
+    column: $table.avatarUrl,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3770,6 +3826,11 @@ class $$StudentsTableOrderingComposer
     column: $table.password,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get avatarUrl => $composableBuilder(
+    column: $table.avatarUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$StudentsTableAnnotationComposer
@@ -3812,6 +3873,9 @@ class $$StudentsTableAnnotationComposer
 
   GeneratedColumn<String> get password =>
       $composableBuilder(column: $table.password, builder: (column) => column);
+
+  GeneratedColumn<String> get avatarUrl =>
+      $composableBuilder(column: $table.avatarUrl, builder: (column) => column);
 }
 
 class $$StudentsTableTableManager
@@ -3850,6 +3914,7 @@ class $$StudentsTableTableManager
                 Value<String> programme = const Value.absent(),
                 Value<String> yearOfStudy = const Value.absent(),
                 Value<String> password = const Value.absent(),
+                Value<String?> avatarUrl = const Value.absent(),
               }) => StudentsCompanion(
                 id: id,
                 studentId: studentId,
@@ -3859,6 +3924,7 @@ class $$StudentsTableTableManager
                 programme: programme,
                 yearOfStudy: yearOfStudy,
                 password: password,
+                avatarUrl: avatarUrl,
               ),
           createCompanionCallback:
               ({
@@ -3870,6 +3936,7 @@ class $$StudentsTableTableManager
                 required String programme,
                 required String yearOfStudy,
                 required String password,
+                Value<String?> avatarUrl = const Value.absent(),
               }) => StudentsCompanion.insert(
                 id: id,
                 studentId: studentId,
@@ -3879,6 +3946,7 @@ class $$StudentsTableTableManager
                 programme: programme,
                 yearOfStudy: yearOfStudy,
                 password: password,
+                avatarUrl: avatarUrl,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

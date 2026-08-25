@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +40,9 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(courses);
 
         await seedDevData();
+      }
+      if (from < 4) {
+        await m.addColumn(students, students.avatarUrl);
       }
     },
 
@@ -333,10 +336,39 @@ class AppDatabase extends _$AppDatabase {
       ..where((a) => a.id.isIn(ids)))
         .write(const AttendanceRecordsCompanion(synced: Value(true)));
   }
+
+  // ── Cloud sync helpers (SyncService → Neon Postgres) ────────────────────
+
+  Future<List<Session>> getUnsyncedSessions() {
+    return (select(sessions)..where((s) => s.synced.equals(false))).get();
+  }
+
+  Future<void> markSessionsSynced(List<String> sessionIds) async {
+    await (update(sessions)..where((s) => s.sessionId.isIn(sessionIds)))
+        .write(const SessionsCompanion(synced: Value(true)));
+  }
+
+  Future<List<Lecturer>> getAllLecturers() => select(lecturers).get();
+
+  Future<List<Student>> getAllStudents() => select(students).get();
+
+  Future<List<EnrolledStudent>> getAllEnrolledStudents() =>
+      select(enrolledStudents).get();
+
   // ── Sessions helpers ──────────────────────────────────────────────────────
 
   Future<int> insertSession(SessionsCompanion entry) =>
       into(sessions).insert(entry);
+
+  /// Caches a session's basic metadata (course, timing) locally on the
+  /// student's device. The lecturer's Sessions row lives on the lecturer's
+  /// own device and is never transmitted — a student only ever learns a
+  /// session's details from the UDP broadcast — so this is called right
+  /// after a successful attendance submission to make the course name/date
+  /// available to that student's own history screen.
+  Future<void> upsertSessionMeta(SessionsCompanion entry) {
+    return into(sessions).insertOnConflictUpdate(entry);
+  }
 
   Future<Session?> getSessionById(String sessionId) {
     return (select(sessions)
@@ -371,6 +403,15 @@ class AppDatabase extends _$AppDatabase {
   /// Upsert a profile row — called after a successful Supabase sync.
   Future<void> upsertStudentProfile(StudentsCompanion entry) {
     return into(students).insertOnConflictUpdate(entry);
+  }
+
+  /// Saves the Cloudinary URL of a student's profile picture. Any screen
+  /// watching watchStudentProfile() for this studentId picks up the change
+  /// automatically — that's what keeps the avatar in sync across the
+  /// profile, home, and history screens.
+  Future<void> updateStudentAvatar(String studentId, String avatarUrl) {
+    return (update(students)..where((s) => s.studentId.equals(studentId)))
+        .write(StudentsCompanion(avatarUrl: Value(avatarUrl)));
   }
 
   /// Returns all courses the student is enrolled in.

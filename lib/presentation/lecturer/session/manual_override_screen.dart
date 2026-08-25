@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../providers/app_database_provider.dart';
 import 'session_controller.dart';
 
-class ManualOverrideScreen extends StatefulWidget {
+class ManualOverrideScreen extends ConsumerStatefulWidget {
   final StudentEntry student;
+  final String sessionId;
   const ManualOverrideScreen({
     super.key,
     required this.student,
+    required this.sessionId,
   });
 
   @override
-  State<ManualOverrideScreen> createState() => _ManualOverrideScreenState();
+  ConsumerState<ManualOverrideScreen> createState() =>
+      _ManualOverrideScreenState();
 }
 
-class _ManualOverrideScreenState extends State<ManualOverrideScreen> {
+class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _status = 'absent';
   bool _isConfirming = false;
@@ -34,20 +39,23 @@ class _ManualOverrideScreenState extends State<ManualOverrideScreen> {
       _confirmState = null;
     });
 
-    await Future.delayed(const Duration(seconds: 1));
+    final newStatus = _status.toUpperCase(); // PRESENT / LATE / ABSENT
+    await ref.read(appDatabaseProvider).insertAttendanceRecord(
+          sessionId: widget.sessionId,
+          studentId: widget.student.studentId,
+          status: newStatus,
+          submittedAt: DateTime.now().millisecondsSinceEpoch,
+        );
     if (!mounted) return;
 
     setState(() {
       _confirmState = 'success';
     });
 
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
 
-    setState(() {
-      _isConfirming = false;
-      _confirmState = null;
-    });
+    Navigator.of(context).pop(newStatus);
   }
 
   @override

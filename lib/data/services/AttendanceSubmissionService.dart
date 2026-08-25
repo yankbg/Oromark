@@ -134,6 +134,20 @@ class LocalAttendanceServer {
     }
   }
 
+  /// Called when the lecturer switches to the late window before the
+  /// original presentCutoff (manually via the "Start Late Window" button,
+  /// or automatically). Without this, _computeAttendanceStatus keeps
+  /// comparing against the original, now-stale presentCutoff, so a student
+  /// submitting during that gap would still be graded PRESENT even though
+  /// the lecturer already closed the present window.
+  void markLateNow() {
+    final now = DateTime.now();
+    if (_presentCutoff != null && now.isBefore(_presentCutoff!)) {
+      _presentCutoff = now;
+      print('[HTTP_SERVER] Present window closed early — cutoff pulled to $now');
+    }
+  }
+
   /// CRITICAL FIX: Compute attendance status based on submission time
   /// Uses server-side cutoff times, not client data
   String _computeAttendanceStatus(DateTime submissionTime) {

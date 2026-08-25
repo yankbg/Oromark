@@ -42,6 +42,7 @@ class Students extends Table {
   TextColumn get programme    => text()();  //Computer Science, civil engineering,...
   TextColumn get yearOfStudy  => text()();
   TextColumn get password     => text()();
+  TextColumn get avatarUrl    => text().nullable()(); // Cloudinary secure_url
 }
 class Lecturers extends Table {
   IntColumn get id               => integer().autoIncrement()();

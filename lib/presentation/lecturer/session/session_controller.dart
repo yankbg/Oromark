@@ -11,7 +11,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/core/constants/network_constants.dart';
 import 'package:oromark/data/services/udp_service.dart';
+import 'package:oromark/data/services/AttendanceSubmissionService.dart';
 import 'package:oromark/providers/udp_service_provider.dart';
+import 'package:oromark/providers/attendance_submission_provider.dart';
 import '../../../data/database/app_database.dart';
 import '../../../providers/app_database_provider.dart';
 
@@ -197,6 +199,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
   final String _courseName;
   final int _enrolled;
   final UdpService _udpService;
+  final LocalAttendanceServer _attendanceServer;
 
   SessionController({
     required AppDatabase db,
@@ -205,12 +208,14 @@ class SessionController extends StateNotifier<ActiveSessionState> {
     required String courseName,
     required int enrolled,
     required UdpService udpService,
+    required LocalAttendanceServer attendanceServer,
   })
       : _db = db,
         _sessionId = sessionId,
         _courseCode = courseCode,
         _courseName = courseName,
         _enrolled = enrolled,
+        _attendanceServer = attendanceServer,
         _udpService = udpService,
         super(_buildInitialState(sessionId,courseCode, courseName, enrolled)) {
     _startTicker();
@@ -278,11 +283,12 @@ class SessionController extends StateNotifier<ActiveSessionState> {
         name:        enrolledStudent.fullName,
         studentId:   enrolledStudent.studentId,
         checkInTime: attendance != null ? DateTime.fromMillisecondsSinceEpoch(attendance.timestamp) : null,
-        status:      attendance == null
-            ? CheckInStatus.notCheckedIn
-            : attendance.status == 'PRESENT'
-            ? CheckInStatus.present
-            : CheckInStatus.late,
+        status:      switch (attendance?.status) {
+          null      => CheckInStatus.notCheckedIn,
+          'PRESENT' => CheckInStatus.present,
+          'LATE'    => CheckInStatus.late,
+          _         => CheckInStatus.notCheckedIn, // ABSENT override
+        },
       );
     }).toList();
 
@@ -308,6 +314,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
           now.isAfter(state.presentCutoff)) {
         // [FIX] Notify UDP service of auto-transition to late window
         _udpService.switchToLateInterval();
+        _attendanceServer.markLateNow();
         state = state.copyWith(window: SessionWindow.late);
       } else if (state.window == SessionWindow.late &&
           now.isAfter(state.lateCutoff)) {
@@ -325,6 +332,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
     if (state.window != SessionWindow.present) return;
     // [FIX] Notify UDP service to switch broadcast interval and update payload
     _udpService.switchToLateInterval();
+    _attendanceServer.markLateNow();
     state = state.copyWith(window: SessionWindow.late);
   }
 
@@ -357,6 +365,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 class SessionSummaryState {
+  final String            sessionId;
   final String            courseCode;
   final String            courseName;
   final DateTime          startedAt;
@@ -367,6 +376,7 @@ class SessionSummaryState {
   final List<StudentEntry> absentStudents;
 
   const SessionSummaryState({
+    required this.sessionId,
     required this.courseCode,
     required this.courseName,
     required this.startedAt,
@@ -376,6 +386,24 @@ class SessionSummaryState {
     required this.enrolled,
     required this.absentStudents,
   });
+
+  SessionSummaryState copyWith({
+    int?               presentCount,
+    int?               lateCount,
+    List<StudentEntry>? absentStudents,
+  }) {
+    return SessionSummaryState(
+      sessionId:       sessionId,
+      courseCode:      courseCode,
+      courseName:      courseName,
+      startedAt:       startedAt,
+      endedAt:         endedAt,
+      presentCount:    presentCount    ?? this.presentCount,
+      lateCount:       lateCount       ?? this.lateCount,
+      enrolled:        enrolled,
+      absentStudents:  absentStudents  ?? this.absentStudents,
+    );
+  }
 
   int get absentCount => enrolled - presentCount - lateCount;
 
@@ -407,5 +435,6 @@ final sessionControllerProvider = StateNotifierProvider.family<
     courseName: params.courseName,
     enrolled: params.enrolled,
     udpService: ref.watch(udpServiceProvider),
+    attendanceServer: ref.watch(localAttendanceServerProvider),
   ),
 );

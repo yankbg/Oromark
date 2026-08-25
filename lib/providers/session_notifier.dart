@@ -20,7 +20,21 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
     Timer? _presentIntervalTimer;
     Timer? _lateIntervalTimer;
     @override
-    SessionState build() => SessionState.idle();
+    SessionState build() {
+      // This provider auto-disposes (e.g. when the screen watching it
+      // unmounts between sessions). Without this, a leaked timer from a
+      // disposed instance keeps running and later fires switchToLateInterval()
+      // against the shared UdpService/LocalAttendanceServer singletons,
+      // incorrectly flipping whatever session happens to be active at that
+      // moment to LATE — even one that just started.
+      ref.onDispose(() {
+        _presentIntervalTimer?.cancel();
+        _presentIntervalTimer = null;
+        _lateIntervalTimer?.cancel();
+        _lateIntervalTimer = null;
+      });
+      return SessionState.idle();
+    }
 
     /// Starts a new attendance session
     ///
@@ -285,6 +299,9 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
       state = currentState.copyWith(isLate: true);
       // Tell UDP broadcaster to update payload and change interval
       ref.read(udpServiceProvider).switchToLateInterval();
+      // Also pull the HTTP server's present cutoff to now, so a submission
+      // arriving after this point is graded LATE instead of PRESENT.
+      ref.read(localAttendanceServerProvider).markLateNow();
 
       print('[SESSION_NOTIFIER] Switched to late interval');
     }
