@@ -22,11 +22,16 @@ if (!connectionString) {
   );
 }
 
+// Neon needs SSL; local Postgres (used temporarily while Neon connectivity
+// is unreliable — see .env.local) doesn't have it configured at all, so
+// derive this from the connection string instead of hardcoding "require".
+const needsSsl = connectionString.includes("sslmode=require");
+
 // Reuse the connection pool across hot reloads in dev.
 const rawSql =
   global.__oromarkSql ??
   postgres(connectionString, {
-    ssl: "require",
+    ssl: needsSsl ? "require" : false,
     max: 10,
     // Was 20s — on a network where establishing a fresh connection is a
     // coin-flip (see withConnectionRetry below), tearing pooled connections

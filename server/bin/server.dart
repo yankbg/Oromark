@@ -78,9 +78,14 @@ Pool _openPool(String dbUrl) {
     username: Uri.decodeComponent(userInfo[0]),
     password: Uri.decodeComponent(userInfo[1]),
   );
+  // Neon needs SSL; local Postgres (used temporarily while Neon
+  // connectivity is unreliable — see server/.env) doesn't have it
+  // configured, so derive this from the connection string instead of
+  // hardcoding "require".
+  final needsSsl = dbUrl.contains('sslmode=require');
   return Pool.withEndpoints(
     [endpoint],
-    settings: const PoolSettings(sslMode: SslMode.require),
+    settings: PoolSettings(sslMode: needsSsl ? SslMode.require : SslMode.disable),
   );
 }
 
