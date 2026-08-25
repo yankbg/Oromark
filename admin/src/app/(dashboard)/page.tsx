@@ -30,6 +30,11 @@ import {
   getAttendanceTrend,
   getAttendanceBreakdown,
   getTopCourses,
+  type DashboardStats,
+  type RecentSession,
+  type AttendanceTrendPoint,
+  type AttendanceBreakdown,
+  type TopCourse,
 } from "@/lib/actions/dashboard";
 
 function formatDate(iso: string) {
@@ -41,8 +46,30 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
+const EMPTY_STATS: DashboardStats = {
+  studentCount: 0,
+  lecturerCount: 0,
+  courseCount: 0,
+  sessionCount: 0,
+  liveSessionCount: 0,
+  attendanceRecordCount: 0,
+  avgAttendance: null,
+};
+
+const EMPTY_BREAKDOWN: AttendanceBreakdown = { present: 0, late: 0, absent: 0 };
+
+/** Unwraps a settled result to its value, or a fallback if that one query
+ * failed — so one flaky widget (e.g. a Neon connection blip on just the
+ * trend query) doesn't take down the whole page when the other four
+ * queries succeeded fine. Logs the failure server-side either way. */
+function settle<T>(result: PromiseSettledResult<T>, fallback: T): T {
+  if (result.status === "fulfilled") return result.value;
+  console.error("[OverviewPage] a dashboard query failed:", result.reason);
+  return fallback;
+}
+
 export default async function OverviewPage() {
-  const [stats, sessions, trend, breakdown, topCourses] = await Promise.all([
+  const results = await Promise.allSettled([
     getDashboardStats(),
     getRecentSessions(),
     getAttendanceTrend(14),
@@ -50,12 +77,25 @@ export default async function OverviewPage() {
     getTopCourses(6),
   ]);
 
+  const stats = settle(results[0] as PromiseSettledResult<DashboardStats>, EMPTY_STATS);
+  const sessions = settle(results[1] as PromiseSettledResult<RecentSession[]>, []);
+  const trend = settle(results[2] as PromiseSettledResult<AttendanceTrendPoint[]>, []);
+  const breakdown = settle(results[3] as PromiseSettledResult<AttendanceBreakdown>, EMPTY_BREAKDOWN);
+  const topCourses = settle(results[4] as PromiseSettledResult<TopCourse[]>, []);
+  const anyFailed = results.some((r) => r.status === "rejected");
+
   return (
     <div>
       <PageHeader
         title="Overview"
         description="What's synced from the field right now."
       />
+
+      {anyFailed ? (
+        <div className="mb-4 rounded-lg border border-[var(--oro-warning)]/30 bg-[var(--oro-warning)]/10 px-4 py-2.5 text-sm text-[var(--oro-warning)]">
+          Some widgets below couldn&apos;t load just now — the rest of the page is still live. Refresh to retry.
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Students" value={stats.studentCount} icon={AcademicCapIcon} accent="primary" />
