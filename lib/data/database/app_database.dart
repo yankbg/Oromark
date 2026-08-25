@@ -405,6 +405,20 @@ class AppDatabase extends _$AppDatabase {
     return into(students).insertOnConflictUpdate(entry);
   }
 
+  /// Returns the profile row for a lecturer, by lecturerId.
+  Future<Lecturer?> getLecturerProfile(String lecturerId) {
+    return (select(lecturers)
+      ..where((l) => l.lecturerId.equals(lecturerId)))
+        .getSingleOrNull();
+  }
+
+  /// Upsert a lecturer profile row — called after a successful network
+  /// login, so the profile is cached locally for offline-fallback logins
+  /// and for the rest of the app's offline-capable screens.
+  Future<void> upsertLecturerProfile(LecturersCompanion entry) {
+    return into(lecturers).insertOnConflictUpdate(entry);
+  }
+
   /// Saves the Cloudinary URL of a student's profile picture. Any screen
   /// watching watchStudentProfile() for this studentId picks up the change
   /// automatically — that's what keeps the avatar in sync across the
@@ -465,7 +479,15 @@ class AppDatabase extends _$AppDatabase {
   }
 
 
-    Future<AuthResult?> login({
+    /// On-device-only login check against local SQLite. This is the
+    /// degraded-but-functional fallback path used by [LoginController] when
+    /// the network call to the sync server's POST /auth/login can't be
+    /// made (no internet) or when the network endpoint doesn't yet know
+    /// about this account (a pre-existing local-only account that hasn't
+    /// been bootstrapped to Neon yet). Kept under its original name-free
+    /// signature so existing behavior is unchanged; renamed to loginLocal
+    /// to make the network-first flow in LoginController read clearly.
+    Future<AuthResult?> loginLocal({
       String? studentId,
       String? email,
       required String password,

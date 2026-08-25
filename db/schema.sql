@@ -6,9 +6,12 @@
 -- with zero internet access. This database is written to only by the sync backend
 -- (server/), after the fact, whenever a phone has real internet.
 --
--- Deliberately excludes password columns — nothing here needs student/lecturer
--- credentials, and a database reachable over the internet is a meaningfully bigger
--- attack surface than an on-device SQLite file.
+-- Auth: students/lecturers now also have a `password_hash` column (bcrypt),
+-- backing real server-side login (server/bin/server.dart POST /auth/login).
+-- Only a bcrypt hash is ever stored here — never plaintext. This lets a
+-- student/lecturer provisioned purely through the admin dashboard actually
+-- log into the mobile app, which was impossible before (the on-device
+-- SQLite login had no way to learn about dashboard-created accounts).
 
 create extension if not exists pgcrypto;
 
@@ -27,7 +30,8 @@ create table if not exists lecturers (
     lecturer_id    text unique not null,
     lecturer_name  text not null,
     lecturer_email text not null,
-    department     text not null
+    department     text not null,
+    password_hash  text
 );
 
 create table if not exists students (
@@ -38,7 +42,8 @@ create table if not exists students (
     phone_number   text not null,
     programme      text not null,
     year_of_study  text not null,
-    avatar_url     text
+    avatar_url     text,
+    password_hash  text
 );
 
 create table if not exists enrolled_students (
