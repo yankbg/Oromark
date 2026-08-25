@@ -1,0 +1,20 @@
+name: oromark_sync_server
+description: >
+  Minimal backend that syncs OROmark's on-device SQLite data to Neon Postgres,
+  feeding the future web admin dashboard. Holds the real Postgres credentials —
+  these must never be embedded in the mobile app.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  shelf: ^1.4.1
+  shelf_router: ^1.1.4
+  postgres: ^3.1.0
+  dotenv: ^4.2.0
+  bcrypt: ^1.1.3
+
+dev_dependencies:
+  lints: ^4.0.0

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/core/theme/app_colors.dart';
 import 'package:oromark/data/models/auth_result.dart';
 import 'package:oromark/providers/auth_state_provider.dart';
+import 'package:oromark/presentation/lecturer/courses/course_controller.dart';
 
 import '../providers/login_provider.dart';
 
@@ -68,6 +69,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (result is AuthResult) {
         ref.read(authStateNotifierProvider.notifier).setUser(result);
+        // Discard any previously-loaded lecturer's courses so a different
+        // lecturer logging in on the same app session doesn't briefly see
+        // (or, if they never pull-to-refresh, keep seeing) the prior
+        // lecturer's course list.
+        ref.invalidate(courseControllerProvider);
         Navigator.of(context).pushReplacementNamed(
           _selectedRole == 0 ? '/student/home' : '/lecturer/courses',
           arguments: result,

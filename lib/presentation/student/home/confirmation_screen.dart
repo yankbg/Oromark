@@ -1,26 +1,21 @@
-// lib/presentation/student/home/confirmation_screen.dart [UPDATED]
+// lib/presentation/student/home/confirmation_screen.dart
 //
-// Student confirmation screen with room code validation.
-//
-// NEW BEHAVIOR:
-// 1. Room code input field (case-insensitive, max 6 chars)
-// 2. Validation: compare entered code with session.roomCode
-// 3. Error message if code is wrong
-// 4. Confirm button disabled until code is entered
-// 5. Success overlay after confirmation
+// Student confirmation screen — one-tap "Yes, I'm Present" confirmation,
+// then submits to the lecturer's server and shows a success overlay.
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:oromark/data/models/auth_result.dart';
+import 'package:http/http.dart' as http;
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_state_provider.dart';
 import 'student_home_controller.dart'; // DetectedSession lives here
 
 class ConfirmationScreen extends ConsumerStatefulWidget {
   final DetectedSession session;
-  final Future<String> Function(DetectedSession session,String studentId) onSubmit;
+  final Future<void> Function(DetectedSession session, String studentId, String status) onSubmit;
   const ConfirmationScreen({super.key, required this.session, required this.onSubmit});
 
   @override
@@ -31,7 +26,8 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
   late final TextEditingController _roomCodeController;
   bool _submitting = false;
   bool _confirmed = false;
-  String? _codeError; // Shows error message if code validation fails
+  String? _codeError; // Shows error message if code validation / submission fails
+  String? _finalStatus; // server-confirmed PRESENT/LATE, for the success overlay
 
   @override
   void initState() {
@@ -54,44 +50,67 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
     super.dispose();
   }
 
-  /// ✅ NEW: Validate the room code entered by the student
-  /// Returns true if code matches, false otherwise
+  /// Validate the room code entered by the student — the only source of
+  /// this code is the lecturer or the board, since the app never displays
+  /// it (session.room is a physical location label, not this secret).
   bool _validateRoomCode() {
     final enteredCode = _roomCodeController.text.trim().toUpperCase();
     final actualCode = widget.session.roomCode.toUpperCase();
 
-    // Check if empty
     if (enteredCode.isEmpty) {
       setState(() => _codeError = 'Room code is required');
       return false;
     }
 
-    // Check if matches
     if (enteredCode != actualCode) {
       setState(() => _codeError = 'Incorrect room code. Try again.');
-      HapticFeedback.lightImpact(); // Haptic feedback for error
+      HapticFeedback.lightImpact();
       return false;
     }
 
-    // ✅ Valid code
     setState(() => _codeError = null);
     return true;
   }
 
-  Future<void> _handleConfirm() async {
-    // ✅ First: Validate room code
-    if (!_validateRoomCode()) {
-      return; // Code is invalid, stop here
+  Future<String> submitAttendance({
+    required DetectedSession session,
+    required String studentId,
+  }) async {
+    final uri = Uri.parse('http://${session.lecturerIP}:${session.lecturerPort}/attendance');
+
+    final payload = {
+      'sessionId': session.sessionId,
+      'studentId': studentId,
+      'status': session.isLate ? 'LATE' : 'PRESENT',
+    };
+
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    if (resp.statusCode == 200) {
+      // The server computes the authoritative status (it ignores the
+      // client-sent 'status' above) — use what it actually returned.
+      final responseData = jsonDecode(resp.body) as Map<String, dynamic>;
+      final status = responseData['status'] as String? ??
+          (session.isLate ? 'LATE' : 'PRESENT');
+
+      // Persist locally now that the server has confirmed the submission.
+      await widget.onSubmit(session, studentId, status);
+      return status;
+    } else {
+      throw Exception('Attendance submit failed: ${resp.statusCode} ${resp.body}');
     }
+  }
+
+  Future<void> _handleConfirm() async {
+    if (!_validateRoomCode()) return;
 
     HapticFeedback.mediumImpact();
     setState(() => _submitting = true);
 
-    // TODO: Replace with actual submission via HTTP
-    // await ref.read(studentHomeControllerProvider.notifier).submitAttendance(
-    //   session: widget.session,
-    //   studentId: 'U-2023-8841', // [MOCK] replace with real from Supabase
-    // );
     try{
       final authState  =  ref.watch(authStateNotifierProvider);
       final authResult = authState.value;
@@ -100,16 +119,19 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
         setState(() => _codeError = 'You are not logged in');
         return;
       }
-      final status = await widget.onSubmit(
-        widget.session,
-        authResult.userId,
+      final status = await submitAttendance(
+        session: widget.session,
+        studentId: authResult.userId,
       );
+      print('[Student] HTTP submit status: $status');
+
       if (!mounted) return;
 
       HapticFeedback.heavyImpact();
       setState(() {
         _submitting = false;
         _confirmed = true;
+        _finalStatus = status;
       });
       // Auto-pop after the success overlay shows
       Future.delayed(const Duration(milliseconds: 2600), () {
@@ -122,12 +144,6 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
       setState(() => _codeError = 'Failed to record attendance: $e');
       print('Failed to record attendance: $e');
     }
-    // await Future.delayed(const Duration(milliseconds: 800));
-
-
-
-
-
   }
 
   void _handleCancel() {
@@ -163,7 +179,7 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
                           _SessionCard(session: widget.session),
                           const SizedBox(height: 36),
 
-                          // ✅ NEW: Room code input field with validation
+                          // ── Room code input field with validation ─────
                           _RoomCodeInput(
                             controller: _roomCodeController,
                             error: _codeError,
@@ -229,7 +245,7 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
                           const SizedBox(height: 32),
 
                           // ── Confirm button ────────────────────────────
-                          // [UPDATED] Only enabled if room code is filled
+                          // Only enabled once a room code has been entered
                           SizedBox(
                             width: double.infinity,
                             height: 54,
@@ -305,7 +321,7 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
 
               // ── Success overlay ───────────────────────────────────────────
               if (_confirmed)
-                _SuccessOverlay(isLate: widget.session.isLate),
+                _SuccessOverlay(isLate: _finalStatus == 'LATE'),
             ],
           ),
         ),
@@ -350,7 +366,7 @@ class _AppBar extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ✅ NEW: Room code input widget
+// Room code input widget
 // ─────────────────────────────────────────────────────────────────────────────
 class _RoomCodeInput extends StatelessWidget {
   final TextEditingController controller;
@@ -529,25 +545,13 @@ class _SessionCard extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // ── Details: lecturer + room ──────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: _DetailCell(
-                  icon: Icons.person_rounded,
-                  label: 'Lecturer',
-                  value: session.lecturerName,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _DetailCell(
-                  icon: Icons.location_on_rounded,
-                  label: 'Room',
-                  value: session.room,
-                ),
-              ),
-            ],
+          // ── Details: lecturer ──────────────────────────────────
+          // No room shown here — the app never displays the room code;
+          // students must get it from the lecturer or the board.
+          _DetailCell(
+            icon: Icons.person_rounded,
+            label: 'Lecturer',
+            value: session.lecturerName,
           ),
 
           // ── Remaining time bar ─────────────────────────────

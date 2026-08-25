@@ -112,7 +112,9 @@ class _CardHeader extends StatelessWidget {
   }
 }
 
-// ── Details row: lecturer + room ──────────────────────────────────────────────
+// ── Details row: lecturer ─────────────────────────────────────────────────────
+// No room shown here — the app never displays the room code; students must
+// get it from the lecturer or the board.
 class _CardDetails extends StatelessWidget {
   final DetectedSession session;
   const _CardDetails({required this.session});
@@ -127,24 +129,10 @@ class _CardDetails extends StatelessWidget {
           horizontal: BorderSide(color: Color(0xFFE2E8E4), width: 1),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _InfoCell(
-              icon: Icons.person_rounded,
-              label: 'Lecturer',
-              value: session.lecturerName,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _InfoCell(
-              icon: Icons.location_on_rounded,
-              label: 'Room',
-              value: session.room,
-            ),
-          ),
-        ],
+      child: _InfoCell(
+        icon: Icons.person_rounded,
+        label: 'Lecturer',
+        value: session.lecturerName,
       ),
     );
   }

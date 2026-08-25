@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: oromark-sync-server
+    runtime: docker
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NEON_DB_URL
+        sync: false
+      - key: SYNC_API_KEY
+        sync: false
+      - key: PORT
+        value: "8080"

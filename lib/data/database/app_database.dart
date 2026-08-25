@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +40,9 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(courses);
 
         await seedDevData();
+      }
+      if (from < 4) {
+        await m.addColumn(students, students.avatarUrl);
       }
     },
 
@@ -190,7 +193,8 @@ class AppDatabase extends _$AppDatabase {
     if (existing.isNotEmpty) return;
 
     // The logged-in student — matches 'Alex Rivera' in CS301 enrolled list.
-    await into(students).insert(
+    await batch((b) {
+      b.insertAll(students, [
       StudentsCompanion.insert(
         studentId:   'U-2023-8841',
         studentName:    'Alex Rivera',
@@ -200,7 +204,38 @@ class AppDatabase extends _$AppDatabase {
         yearOfStudy:    '3rd Year',
           password:      '1234'
       ),
-    );
+      StudentsCompanion.insert(
+        studentId: 'U-2023-9102',
+        studentName: 'Elena Sofia',
+        studentEmail: 'elena.sofia@iuea.ac.ug',
+        phoneNumber: '+256 790 228 490',
+        programme: 'Computer Science',
+        yearOfStudy: '3rd Year',
+        password: '5678',
+      ),
+
+      StudentsCompanion.insert(
+        studentId: 'U-2023-7443',
+        studentName: 'Jordan Mills',
+        studentEmail: 'jordan.mills@iuea.ac.ug',
+        phoneNumber: '+256 790 228 491',
+        programme: 'Computer Science',
+        yearOfStudy: '3rd Year',
+        password: '9123',
+      ),
+
+      StudentsCompanion.insert(
+        studentId: 'U-2023-1109',
+        studentName: 'Maya Kaur',
+        studentEmail: 'maya.kaur@iuea.ac.ug',
+        phoneNumber: '+256 790 228 492',
+        programme: 'Computer Science',
+        yearOfStudy: '3rd Year',
+        password: '4567',
+      ),
+
+      ]);
+    });
   }
   static EnrolledStudentsCompanion _buildStudent(
       String studentId,
@@ -216,6 +251,46 @@ class AppDatabase extends _$AppDatabase {
   // ── Course helpers ────────────────────────────────────────────────────────
 
   Future<List<Course>> getAllCourses() => select(courses).get();
+
+  Future<List<Course>> getCoursesForLecturer(String lecturerId) {
+    return (select(courses)..where((c) => c.lecturerId.equals(lecturerId)))
+        .get();
+  }
+
+  /// Upserts a course pulled from Neon (courseCode is unique locally, so
+  /// this matches the existing row if one exists).
+  ///
+  /// Must target courseCode explicitly: courses.id is a meaningless local
+  /// autoincrement PK never supplied here, so insertOnConflictUpdate's
+  /// default (conflict on the PK) never fires — it would try to INSERT a
+  /// new row every time and crash with a UNIQUE constraint violation on
+  /// course_code whenever this course already exists locally (e.g. one of
+  /// the seeded demo courses).
+  Future<void> upsertCourse(CoursesCompanion entry) {
+    return into(courses).insert(
+      entry,
+      onConflict: DoUpdate((_) => entry, target: [courses.courseCode]),
+    );
+  }
+
+  /// Replaces the local roster for [courseCode] with [roster] pulled from
+  /// Neon. EnrolledStudents has no local uniqueness constraint to upsert
+  /// against, so — since Neon is authoritative for who's enrolled — the
+  /// simplest correct approach is to clear this course's local rows first,
+  /// then insert the fresh set, inside one transaction.
+  Future<void> replaceEnrolledStudents(
+    String courseCode,
+    List<EnrolledStudentsCompanion> roster,
+  ) async {
+    await transaction(() async {
+      await (delete(enrolledStudents)
+            ..where((e) => e.courseCode.equals(courseCode)))
+          .go();
+      if (roster.isNotEmpty) {
+        await batch((b) => b.insertAll(enrolledStudents, roster));
+      }
+    });
+  }
 
   Stream<List<Course>> watchAllCourses() => select(courses).watch();
 
@@ -301,10 +376,39 @@ class AppDatabase extends _$AppDatabase {
       ..where((a) => a.id.isIn(ids)))
         .write(const AttendanceRecordsCompanion(synced: Value(true)));
   }
+
+  // ── Cloud sync helpers (SyncService → Neon Postgres) ────────────────────
+
+  Future<List<Session>> getUnsyncedSessions() {
+    return (select(sessions)..where((s) => s.synced.equals(false))).get();
+  }
+
+  Future<void> markSessionsSynced(List<String> sessionIds) async {
+    await (update(sessions)..where((s) => s.sessionId.isIn(sessionIds)))
+        .write(const SessionsCompanion(synced: Value(true)));
+  }
+
+  Future<List<Lecturer>> getAllLecturers() => select(lecturers).get();
+
+  Future<List<Student>> getAllStudents() => select(students).get();
+
+  Future<List<EnrolledStudent>> getAllEnrolledStudents() =>
+      select(enrolledStudents).get();
+
   // ── Sessions helpers ──────────────────────────────────────────────────────
 
   Future<int> insertSession(SessionsCompanion entry) =>
       into(sessions).insert(entry);
+
+  /// Caches a session's basic metadata (course, timing) locally on the
+  /// student's device. The lecturer's Sessions row lives on the lecturer's
+  /// own device and is never transmitted — a student only ever learns a
+  /// session's details from the UDP broadcast — so this is called right
+  /// after a successful attendance submission to make the course name/date
+  /// available to that student's own history screen.
+  Future<void> upsertSessionMeta(SessionsCompanion entry) {
+    return into(sessions).insertOnConflictUpdate(entry);
+  }
 
   Future<Session?> getSessionById(String sessionId) {
     return (select(sessions)
@@ -337,8 +441,51 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Upsert a profile row — called after a successful Supabase sync.
+  ///
+  /// Must target studentId explicitly: students.id is a meaningless local
+  /// autoincrement PK never supplied here, so insertOnConflictUpdate's
+  /// default (conflict on the PK) never fires — it would try to INSERT a
+  /// new row every time and crash with a UNIQUE constraint violation on
+  /// student_id/student_email whenever this student already has a local
+  /// row (e.g. one of the seeded demo students, or a prior login).
   Future<void> upsertStudentProfile(StudentsCompanion entry) {
-    return into(students).insertOnConflictUpdate(entry);
+    return into(students).insert(
+      entry,
+      onConflict: DoUpdate((_) => entry, target: [students.studentId]),
+    );
+  }
+
+  /// Returns the profile row for a lecturer, by lecturerId.
+  Future<Lecturer?> getLecturerProfile(String lecturerId) {
+    return (select(lecturers)
+      ..where((l) => l.lecturerId.equals(lecturerId)))
+        .getSingleOrNull();
+  }
+
+  /// Upsert a lecturer profile row — called after a successful network
+  /// login, so the profile is cached locally for offline-fallback logins
+  /// and for the rest of the app's offline-capable screens.
+  ///
+  /// Must target lecturerId explicitly: lecturers.id is a meaningless local
+  /// autoincrement PK never supplied here, so insertOnConflictUpdate's
+  /// default (conflict on the PK) never fires — it would try to INSERT a
+  /// new row every time and crash with a UNIQUE constraint violation on
+  /// lecturer_id whenever this lecturer already has a local row (e.g. the
+  /// seeded demo lecturer, or a prior login).
+  Future<void> upsertLecturerProfile(LecturersCompanion entry) {
+    return into(lecturers).insert(
+      entry,
+      onConflict: DoUpdate((_) => entry, target: [lecturers.lecturerId]),
+    );
+  }
+
+  /// Saves the Cloudinary URL of a student's profile picture. Any screen
+  /// watching watchStudentProfile() for this studentId picks up the change
+  /// automatically — that's what keeps the avatar in sync across the
+  /// profile, home, and history screens.
+  Future<void> updateStudentAvatar(String studentId, String avatarUrl) {
+    return (update(students)..where((s) => s.studentId.equals(studentId)))
+        .write(StudentsCompanion(avatarUrl: Value(avatarUrl)));
   }
 
   /// Returns all courses the student is enrolled in.
@@ -392,7 +539,15 @@ class AppDatabase extends _$AppDatabase {
   }
 
 
-    Future<AuthResult?> login({
+    /// On-device-only login check against local SQLite. This is the
+    /// degraded-but-functional fallback path used by [LoginController] when
+    /// the network call to the sync server's POST /auth/login can't be
+    /// made (no internet) or when the network endpoint doesn't yet know
+    /// about this account (a pre-existing local-only account that hasn't
+    /// been bootstrapped to Neon yet). Kept under its original name-free
+    /// signature so existing behavior is unchanged; renamed to loginLocal
+    /// to make the network-first flow in LoginController read clearly.
+    Future<AuthResult?> loginLocal({
       String? studentId,
       String? email,
       required String password,

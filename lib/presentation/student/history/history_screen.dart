@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/presentation/student/home/student_home_screen.dart';
 import 'package:oromark/presentation/student/profile/profile_screen.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/student_avatar.dart';
 import 'history_controller.dart';
 import 'history_item.dart';
 import '../../../providers/app_database_provider.dart';
@@ -34,7 +35,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
     );
     final db = ref.read(appDatabaseProvider);
-    _ctrl = HistoryController(db)..addListener(() => setState(() {}));
+    _ctrl = HistoryController(db, ref)
+      ..addListener(() => setState(() {}));
   }
 
   @override
@@ -217,25 +219,7 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withOpacity(0.10),
-                  border: Border.all(color: AppColors.primary, width: 1.5),
-                ),
-                child: const Center(
-                  child: Text(
-                    'A',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
+              const StudentAvatar(size: 34),
             ],
           ),
         ),

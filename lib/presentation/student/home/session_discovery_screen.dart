@@ -17,10 +17,7 @@ import 'confirmation_screen.dart';
 class SessionDiscoverySheet extends ConsumerWidget {
   final Function(DetectedSession) onSessionSelected;
 
-  const SessionDiscoverySheet({
-    super.key,
-    required this.onSessionSelected,
-  });
+  const SessionDiscoverySheet({super.key, required this.onSessionSelected});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -134,17 +131,12 @@ class _SessionList extends ConsumerWidget {
             SizedBox(
               width: 40,
               height: 40,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
             SizedBox(height: 16),
             Text(
               'Listening for broadcasts...',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -159,10 +151,8 @@ class _SessionList extends ConsumerWidget {
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           itemCount: sessions.length,
-          itemBuilder: (context, index) => _SessionTile(
-            session: sessions[index],
-            onTap: onSessionSelected,
-          ),
+          itemBuilder: (context, index) =>
+              _SessionTile(session: sessions[index], onTap: onSessionSelected),
         );
       },
 
@@ -266,9 +256,7 @@ class _EmptyState extends StatelessWidget {
             },
             icon: const Icon(Icons.refresh_rounded),
             label: const Text('Retry'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
           ),
         ],
       ),
@@ -277,153 +265,157 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ── Session tile ───────────────────────────────────────────────────────────────
-class _SessionTile extends StatelessWidget {
+class _SessionTile extends ConsumerWidget {
   final DetectedSession session;
   final Function(DetectedSession) onTap;
 
-  const _SessionTile({
-    required this.session,
-    required this.onTap,
-  });
+  const _SessionTile({required this.session, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isLate = session.isLate;
+    final alreadyConfirmed =
+        ref.watch(attendanceRecordProvider(session.sessionId)).value != null;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.bgSecondary,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8E4)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onTap(session),
+    return Opacity(
+      opacity: alreadyConfirmed ? 0.5 : 1.0,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.bgSecondary,
           borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Top row: course code + time window ──────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            session.courseCode,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            session.courseName,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isLate ? AppColors.lateBg : AppColors.bgPrimary,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isLate ? 'LATE' : 'PRESENT',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: isLate ? AppColors.lateText : AppColors.success,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-
-                // ── Details row: lecturer + room ───────────────
-                Row(
-                  children: [
-                    Expanded(
-                      child: _DetailChip(
-                        icon: Icons.person_rounded,
-                        label: session.lecturerName,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _DetailChip(
-                        icon: Icons.location_on_rounded,
-                        label: session.room,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-
-                // ✅ [UPDATED] Removed room code display
-                // Instead, show a hint about the confirmation screen
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.bgTertiary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
+          border: Border.all(color: const Color(0xFFE2E8E4)),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: alreadyConfirmed ? null : () => onTap(session),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Top row: course code + time window ──────────
+                  Row(
                     children: [
-                      const Icon(
-                        Icons.info_outline_rounded,
-                        size: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: 6),
-                      const Expanded(
-                        child: Text(
-                          'You\'ll need to enter the room code on the next screen',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                            fontStyle: FontStyle.italic,
-                          ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              session.courseCode,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              session.courseName,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatRemaining(session.remaining),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isLate ? AppColors.warning : AppColors.success,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isLate
+                              ? AppColors.lateBg
+                              : AppColors.bgPrimary,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isLate ? 'LATE' : 'PRESENT',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: isLate
+                                ? AppColors.lateText
+                                : AppColors.success,
+                            letterSpacing: 0.3,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 10),
+
+                  // ── Details row: lecturer ───────────────────────
+                  // No room shown here — session.room is the secret room
+                  // code, not a physical location; students must get the
+                  // code from the lecturer or the board.
+                  _DetailChip(
+                    icon: Icons.person_rounded,
+                    label: session.lecturerName,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // ✅ [UPDATED] Removed room code display
+                  // Instead, show a hint about the confirmation screen
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.bgTertiary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            alreadyConfirmed
+                                ? 'You\'ve already confirmed attendance for this session'
+                                : 'You\'ll need to enter the room code on the next screen',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          alreadyConfirmed
+                              ? 'Confirmed'
+                              : _formatRemaining(session.remaining),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: alreadyConfirmed
+                                ? AppColors.textSecondary
+                                : (isLate
+                                      ? AppColors.warning
+                                      : AppColors.success),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -444,10 +436,7 @@ class _DetailChip extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _DetailChip({
-    required this.icon,
-    required this.label,
-  });
+  const _DetailChip({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {

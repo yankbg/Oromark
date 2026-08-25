@@ -17,6 +17,7 @@ class UdpService {
 
   // Store session data for re-broadcast on interval switch
   Map<String, dynamic>? _sessionData;
+  String? _broadcastAddress;
 
   Future<void> startListening(Function(Map<String, dynamic>) onSessionReceived) async{
     if(_isListening) return;
@@ -63,6 +64,10 @@ class UdpService {
     }
 
     try {
+      if (_sessionData != null) {
+        _sessionData!['isLate'] = true;  // ✅ Mark as late window
+        print('[UDP_SERVICE] ✅ Payload updated: isLate=true');
+      }
       // Cancel existing timer
       _timer?.cancel();
       _timer = null;
@@ -74,16 +79,17 @@ class UdpService {
       if (_sessionData != null) {
         String message = jsonEncode(_sessionData);
         List<int> data = utf8.encode(message);
-
+        print('[UDP_SERVICE] $_sessionData');
         _timer = Timer.periodic(
           Duration(seconds: _currentInterval),
               (timer) {
             try {
               _socket!.send(
                 data,
-                InternetAddress(NetworkConstants.broadcastAddress),
+                InternetAddress(_broadcastAddress!),
                 NetworkConstants.udpPort,
               );
+              print('[UDP_SERVICE] Later Windows $_broadcastAddress');
             } catch (e) {
               print('[UDP_SERVICE] Error broadcasting UDP packet (late interval): $e');
             }
@@ -114,6 +120,7 @@ class UdpService {
       String message = jsonEncode(sessionData);
       List<int> data = utf8.encode(message);
       final broadcastAddress = await getBroadcastAddress();
+      _broadcastAddress = await getBroadcastAddress();
 
       // Start periodic broadcast at PRESENT interval
       // _currentInterval = NetworkConstants.broadcastIntervalPresent;
@@ -126,7 +133,7 @@ class UdpService {
           try {
             _socket!.send(
               data,
-              InternetAddress(broadcastAddress),
+              InternetAddress(_broadcastAddress!),
               NetworkConstants.udpPort,
             );
           } catch (e) {
@@ -149,6 +156,7 @@ class UdpService {
   void stopBroadcasting() {
 
     try{
+      _broadcastAddress = null;
       _timer?.cancel();
       _timer = null;
       _socket?.close();
@@ -191,5 +199,78 @@ class UdpService {
     }
 
     return broadcast;
+  }
+  /// Listen for attendance submissions from students on port 5501
+  /// Called by lecturer when session is active
+  Future<void> listenForAttendanceSubmissions(
+      Function(Map<String, dynamic>, InternetAddress) onAttendanceReceived,
+      ) async {
+    try {
+      final attendanceSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        NetworkConstants.udpPort,  // Same port for both broadcast and submissions
+      );
+      attendanceSocket.broadcastEnabled = true;
+
+      attendanceSocket.listen((event) {
+        if (event == RawSocketEvent.read) {
+          final datagram = attendanceSocket.receive();
+          if (datagram != null) {
+            try {
+              final message = String.fromCharCodes(datagram.data);
+              final data = jsonDecode(message) as Map<String, dynamic>;
+
+              // Check if this is an attendance submission
+              if (data['type'] == 'attendance_submit') {
+                print('[UDP_SERVICE] Received attendance submission: ${data['studentId']}');
+                onAttendanceReceived(data, datagram.address);
+              }
+            } catch (e) {
+              print('[UDP_SERVICE] Error parsing attendance submission: $e');
+            }
+          }
+        }
+      });
+
+      print('[UDP_SERVICE] Listening for attendance submissions on port ${NetworkConstants.udpPort}');
+    } catch (e) {
+      print('[UDP_SERVICE] Error setting up attendance listener: $e');
+      rethrow;
+    }
+  }
+
+  /// Send attendance confirmation back to student
+  Future<void> sendAttendanceConfirmation({
+    required String studentId,
+    required String status,  // "PRESENT" or "LATE"
+    required String sessionId,
+    required InternetAddress studentAddress,
+    required int responsePort,
+  }) async {
+    try {
+      final confirmationSocket = await RawDatagramSocket.bind(
+        InternetAddress.anyIPv4,
+        0,  // Let OS pick a free port
+      );
+
+      final payload = {
+        'type': 'attendance_confirm',
+        'studentId': studentId,
+        'sessionId': sessionId,
+        'status': status,
+        'message': status == 'PRESENT' ? 'Attendance confirmed' : 'Marked as late',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      final message = jsonEncode(payload).codeUnits;
+      confirmationSocket.send(message, studentAddress, responsePort);
+
+      print('[UDP_SERVICE] Sent confirmation to $studentId: $status');
+
+      confirmationSocket.close();
+    } catch (e) {
+      print('[UDP_SERVICE] Error sending confirmation: $e');
+      rethrow;
+    }
   }
 }

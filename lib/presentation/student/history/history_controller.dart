@@ -3,13 +3,10 @@
 // All state and logic for the attendance history screen.
 // [MOCK] tags mark places a real drift query will replace.
 
-import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
-import 'package:oromark/data/models/auth_result.dart';
-import 'dart:async';
-import '../../../data/database/app_database.dart';
-import '../../../providers/app_database_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../data/database/app_database.dart';
+import '../../../providers/auth_state_provider.dart';
 
 // ── Status enum ───────────────────────────────────────────────────────────────
 enum AttendanceStatus { present, late, absent }
@@ -49,8 +46,9 @@ extension HistoryFilterLabel on HistoryFilter {
 // ── Controller ────────────────────────────────────────────────────────────────
 class HistoryController extends ChangeNotifier {
   final AppDatabase _db;
-  HistoryController(this._db) {
-    _load(); // [MOCK] — replace with drift query
+  final WidgetRef _ref;
+  HistoryController(this._db, this._ref) {
+    _load();
   }
 
   // ── Public state ────────────────────────────────────────────────────────────
@@ -104,42 +102,58 @@ class HistoryController extends ChangeNotifier {
   //   notifyListeners();
   // }
 
+  // The student's own AttendanceRecords rows are the source of truth on
+  // this device — the lecturer's Sessions row lives on the lecturer's own
+  // device and is never transmitted, so history is built from what this
+  // student actually submitted (plus the session metadata cached locally
+  // at submission time — see AttendanceSubmissionService), not from a
+  // Sessions/ENDED join that would always be empty on a student device.
   Future<void> _load() async {
     try {
-      // Get all ended sessions from drift
-      final sessions = await (_db.select(_db.sessions)
-        ..where((s) => s.status.equals('ENDED'))
-        ..orderBy([(s) => OrderingTerm(expression: s.startTime, mode: OrderingMode.desc)]))
-          .get();
+      // One-time snapshot, not a subscription — history is loaded once at
+      // construction, so `.read` (not `.watch`) is the correct call here.
+      final authResult = _ref.read(authStateNotifierProvider).value;
+      if (authResult == null) {
+        _all = [];
+        isLoading = false;
+        notifyListeners();
+        return;
+      }
+      final studentId = authResult.userId;
 
-      // For each session, get this student's attendance
+      final attendance = await _db.getStudentHistory(studentId);
+
+      // Batch-fetch session metadata for every sessionId in one query,
+      // instead of one getSessionById() call per record (N+1).
+      final sessionIds = attendance.map((r) => r.sessionId).toSet().toList();
+      final sessionRows = sessionIds.isEmpty
+          ? <Session>[]
+          : await (_db.select(_db.sessions)
+                  ..where((s) => s.sessionId.isIn(sessionIds)))
+              .get();
+      final sessionById = {for (final s in sessionRows) s.sessionId: s};
+
       final records = <HistoryRecord>[];
-      for (final session in sessions) {
-        // TODO: Get current student ID from auth
-        const studentId = 'U-2023-8841'; // Mock for Alex
+      for (final record in attendance) {
+        final sessionMeta = sessionById[record.sessionId];
 
-        // Query attendance for this student in this session
-        final attendance = await (_db.select(_db.attendanceRecords)
-          ..where((a) => a.sessionId.equals(session.sessionId) & a.studentId.equals(studentId)))
-            .getSingleOrNull();
+        final status = switch (record.status) {
+          'PRESENT' => AttendanceStatus.present,
+          'LATE'    => AttendanceStatus.late,
+          _         => AttendanceStatus.absent,
+        };
+        final lateMinutes = record.status == 'LATE' && sessionMeta != null
+            ? (record.timestamp - sessionMeta.startTime) ~/ 60000
+            : null;
 
-        if (attendance != null) {
-          final status = attendance.status == 'PRESENT'
-              ? AttendanceStatus.present
-              : AttendanceStatus.late;
-          final lateMinutes = attendance.status == 'LATE'
-              ? (attendance.timestamp - session.startTime) ~/ 60000
-              : null;
-
-          records.add(HistoryRecord(
-            id: attendance.id.toString(),
-            courseCode: session.courseCode,
-            courseName: session.courseName,
-            sessionDate: DateTime.fromMillisecondsSinceEpoch(session.startTime),
-            status: status,
-            lateMinutes: lateMinutes,
-          ));
-        }
+        records.add(HistoryRecord(
+          id: record.id.toString(),
+          courseCode: sessionMeta?.courseCode ?? '—',
+          courseName: sessionMeta?.courseName ?? 'Unknown course',
+          sessionDate: DateTime.fromMillisecondsSinceEpoch(record.timestamp),
+          status: status,
+          lateMinutes: lateMinutes,
+        ));
       }
 
       _all = records;
@@ -147,6 +161,7 @@ class HistoryController extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error loading attendance history: $e');
+      _all = [];
       isLoading = false;
       notifyListeners();
     }

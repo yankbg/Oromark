@@ -1,0 +1,181 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------- */
+/* OROmark brand tokens — copied verbatim from lib/core/theme/app_colors  */
+/* .dart in the Flutter app. Do not invent new brand colors; extend with  */
+/* neutrals only.                                                        */
+/* ---------------------------------------------------------------------- */
+:root {
+  --radius: 0.75rem;
+
+  /* Brand */
+  --oro-primary: #0f6e56; /* teal */
+  --oro-primary-ink: #0b5443; /* darker teal for hover/press */
+  --oro-secondary: #ba7517; /* amber */
+  --oro-tertiary: #3a4d48;
+  --oro-accent: #378add; /* blue */
+
+  /* Status */
+  --oro-success: #639922;
+  --oro-warning: #ba7517;
+  --oro-error: #e24b4a;
+
+  /* Attendance badges (mirrors AppColors present/late/absent/live) */
+  --oro-present-bg: #eaf3de;
+  --oro-present-text: #639922;
+  --oro-late-bg: #faeeda;
+  --oro-late-text: #854f0b;
+  --oro-absent-bg: #fcebeb;
+  --oro-absent-text: #a32d2d;
+  --oro-live-bg: #e6f1fb;
+  --oro-live-text: #185fa5;
+
+  /* Neutrals */
+  --oro-bg-primary: #ffffff;
+  --oro-bg-secondary: #f9fafb;
+  --oro-bg-tertiary: #f1f3f4;
+  --oro-text-primary: #1a1a1a;
+  --oro-text-secondary: #6b7280;
+  --oro-text-tertiary: #9ca3af;
+  --oro-border: #e5e7eb;
+
+  /* Page backdrop — a true neutral gray tinted ~1% toward the brand's teal
+     hue, distinct from card white, so the sidebar+content read as a
+     floating panel rather than an edge-to-edge fill. */
+  --oro-page-bg: #eef1f0;
+
+  /* Elevation — soft multi-layer shadows only. Never pair with a border on
+     the same element (the "ghost card" anti-pattern). */
+  --oro-shadow-xs: 0 1px 2px 0 rgb(16 24 21 / 0.05);
+  --oro-shadow-panel:
+    0 1px 1px 0 rgb(16 24 21 / 0.04), 0 18px 32px -16px rgb(16 24 21 / 0.16);
+  --oro-shadow-pop:
+    0 2px 4px 0 rgb(16 24 21 / 0.04), 0 12px 24px -8px rgb(16 24 21 / 0.14);
+
+  /* Spacing rhythm — 4px base scale used consistently for card padding,
+     section gaps, and stack gaps across every page. */
+  --oro-space-1: 0.25rem;
+  --oro-space-2: 0.5rem;
+  --oro-space-3: 0.75rem;
+  --oro-space-4: 1rem;
+  --oro-space-5: 1.25rem;
+  --oro-space-6: 1.5rem;
+  --oro-space-8: 2rem;
+
+  /* shadcn semantic mapping */
+  --background: var(--oro-bg-primary);
+  --foreground: var(--oro-text-primary);
+  --card: #ffffff;
+  --card-foreground: var(--oro-text-primary);
+  --popover: #ffffff;
+  --popover-foreground: var(--oro-text-primary);
+  --primary: var(--oro-primary);
+  --primary-foreground: #ffffff;
+  --secondary: var(--oro-bg-tertiary);
+  --secondary-foreground: var(--oro-text-primary);
+  --muted: var(--oro-bg-tertiary);
+  --muted-foreground: var(--oro-text-secondary);
+  --accent: var(--oro-bg-secondary);
+  --accent-foreground: var(--oro-primary-ink);
+  --destructive: var(--oro-error);
+  --destructive-foreground: #ffffff;
+  --border: var(--oro-border);
+  --input: var(--oro-border);
+  --ring: var(--oro-primary);
+
+  --sidebar: var(--oro-tertiary);
+  --sidebar-foreground: #eef2f0;
+  --sidebar-primary: var(--oro-primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #4a5f59;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #4a5f59;
+  --sidebar-ring: var(--oro-primary);
+
+  --chart-1: var(--oro-primary);
+  --chart-2: var(--oro-accent);
+  --chart-3: var(--oro-secondary);
+  --chart-4: var(--oro-success);
+  --chart-5: var(--oro-error);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-oro-success: var(--oro-success);
+  --color-oro-warning: var(--oro-warning);
+  --color-oro-error: var(--oro-error);
+  --color-oro-present-bg: var(--oro-present-bg);
+  --color-oro-present-text: var(--oro-present-text);
+  --color-oro-late-bg: var(--oro-late-bg);
+  --color-oro-late-text: var(--oro-late-text);
+  --color-oro-absent-bg: var(--oro-absent-bg);
+  --color-oro-absent-text: var(--oro-absent-text);
+  --color-oro-live-bg: var(--oro-live-bg);
+  --color-oro-live-text: var(--oro-live-text);
+
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-data);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+body {
+  background: var(--oro-page-bg);
+  color: var(--foreground);
+}
+
+/* Tabular figures everywhere numbers appear in data-dense contexts. */
+.font-mono,
+[data-slot="table-cell"] {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

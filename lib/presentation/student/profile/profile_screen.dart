@@ -10,7 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/student_avatar.dart';
 import '../../../providers/app_database_provider.dart';
+import '../../../providers/auth_state_provider.dart';
 import '../history/history_screen.dart';
 import '../home/student_home_screen.dart';
 import 'student_profile_controller.dart';
@@ -38,14 +40,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
     // Obtain the database from Riverpod and hand it to the controller.
     // ConsumerState.ref is safe to use in initState.
-    _ctrl = StudentProfileController(db: ref.read(appDatabaseProvider))
-      ..addListener(() => setState(() {}));
+    final studentId = ref.read(authStateNotifierProvider).value?.userId ?? '';
+    _ctrl = StudentProfileController(
+      db: ref.read(appDatabaseProvider),
+      studentId: studentId,
+    )..addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
+  void _handleSignOut() {
+    ref.read(authStateNotifierProvider.notifier).clearUser();
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -59,13 +71,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         bottom: false,
         child: Column(
           children: [
-            _TopBar(profile: _ctrl.profile),
+            const _TopBar(),
             Expanded(
               child: _Body(
                 isLoading: _ctrl.isLoading,
                 error:     _ctrl.error,
                 profile:   _ctrl.profile,
                 onRefresh: _ctrl.refresh,
+                onSignOut: _handleSignOut,
+                onEditPhoto: _ctrl.pickAndUploadAvatar,
+                isUploadingAvatar: _ctrl.isUploadingAvatar,
+                avatarError: _ctrl.avatarError,
               ),
             ),
           ],
@@ -96,12 +112,20 @@ class _Body extends StatelessWidget {
   final String?               error;
   final StudentProfileViewModel? profile;
   final Future<void> Function() onRefresh;
+  final VoidCallback          onSignOut;
+  final VoidCallback          onEditPhoto;
+  final bool                  isUploadingAvatar;
+  final String?               avatarError;
 
   const _Body({
     required this.isLoading,
     required this.error,
     required this.profile,
     required this.onRefresh,
+    required this.onSignOut,
+    required this.onEditPhoto,
+    required this.isUploadingAvatar,
+    required this.avatarError,
   });
 
   @override
@@ -159,13 +183,18 @@ class _Body extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _ProfileHeader(profile: p),
+            _ProfileHeader(
+              profile: p,
+              onEditPhoto: onEditPhoto,
+              isUploadingAvatar: isUploadingAvatar,
+              avatarError: avatarError,
+            ),
             const SizedBox(height: 16),
             _InfoGrid(profile: p),
             const SizedBox(height: 16),
             _EnrollmentCard(profile: p),
             const SizedBox(height: 16),
-            const _SignOutTile(),
+            _SignOutTile(onSignOut: onSignOut),
             const SizedBox(height: 24),
           ],
         ),
@@ -177,12 +206,10 @@ class _Body extends StatelessWidget {
 // ── Top bar ───────────────────────────────────────────────────────────────────
 
 class _TopBar extends StatelessWidget {
-  final StudentProfileViewModel? profile;
-  const _TopBar({this.profile});
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
-    final initials = profile?.initials ?? '…';
     return Container(
       color: AppColors.bgPrimary,
       child: Container(
@@ -207,26 +234,7 @@ class _TopBar extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            // Avatar with real initials from drift
-            Container(
-              width:  34,
-              height: 34,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.10),
-                border: Border.all(color: AppColors.primary, width: 1.5),
-              ),
-              child: Center(
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    fontSize:   12,
-                    fontWeight: FontWeight.w700,
-                    color:      AppColors.primary,
-                  ),
-                ),
-              ),
-            ),
+            const StudentAvatar(size: 34),
           ],
         ),
       ),
@@ -238,7 +246,16 @@ class _TopBar extends StatelessWidget {
 
 class _ProfileHeader extends StatelessWidget {
   final StudentProfileViewModel profile;
-  const _ProfileHeader({required this.profile});
+  final VoidCallback onEditPhoto;
+  final bool isUploadingAvatar;
+  final String? avatarError;
+
+  const _ProfileHeader({
+    required this.profile,
+    required this.onEditPhoto,
+    required this.isUploadingAvatar,
+    required this.avatarError,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +277,19 @@ class _ProfileHeader extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Avatar — network image if avatarUrl is set, else initials circle
-          _Avatar(profile: profile),
+          _Avatar(
+            profile: profile,
+            onEditPhoto: onEditPhoto,
+            isUploading: isUploadingAvatar,
+          ),
+          if (avatarError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              avatarError!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: AppColors.error),
+            ),
+          ],
           const SizedBox(height: 16),
 
           // Full name from drift
@@ -300,13 +329,22 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-// Avatar widget — shows network image when available, initials fallback otherwise
+// Avatar widget — shows the Cloudinary picture when available, initials
+// fallback otherwise. Tap the pencil to pick a new photo.
 class _Avatar extends StatelessWidget {
   final StudentProfileViewModel profile;
-  const _Avatar({required this.profile});
+  final VoidCallback onEditPhoto;
+  final bool isUploading;
+
+  const _Avatar({
+    required this.profile,
+    required this.onEditPhoto,
+    required this.isUploading,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final avatarUrl = profile.avatarUrl;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -326,14 +364,32 @@ class _Avatar extends StatelessWidget {
             ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.network(
-            'https://lh3.googleusercontent.com/aida-public/AB6AXuAGiOLpDF7nqbe0DWr8i2FEKQtuQIxqb-s3f-uiX8Hntp74m1HL9bqAYnvBsySobMtmS3czjwzclikbWY5FlU71IeZiqpms62lwKLFQT72kf9cmAfUoCz70TV-B5Q1FAGMjwER6MDELDdAJkVjHrztwJ5VKFNHs7VgR0-RIEDtUse2jHSUsQdMPJV9dJWIjkm97eGOGrBrw2oRskCHxBzwMWgNydX6XZNLx2wYXzFItuVhYDUdksw2wJoNlU6oGuxyahm7fH-wbzlo',
-            fit: BoxFit.cover,
-          ),
-
+          child: (avatarUrl != null && avatarUrl.isNotEmpty)
+              ? Image.network(avatarUrl, fit: BoxFit.cover)
+              : _InitialsFallback(initials: profile.initials),
         ),
 
-        // Edit button — TODO: launch image picker + Supabase Storage upload
+        if (isUploading)
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withOpacity(0.35),
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        // Edit button — pick a photo from the gallery and upload to Cloudinary
         Positioned(
           bottom: 2,
           right:  2,
@@ -342,7 +398,7 @@ class _Avatar extends StatelessWidget {
             shape:     const CircleBorder(),
             elevation: 3,
             child: InkWell(
-              onTap:       () {},
+              onTap:       isUploading ? null : onEditPhoto,
               customBorder: const CircleBorder(),
               child: const Padding(
                 padding: EdgeInsets.all(6),
@@ -591,7 +647,8 @@ class _EnrollmentCard extends StatelessWidget {
 // ── Sign out tile ─────────────────────────────────────────────────────────────
 
 class _SignOutTile extends StatelessWidget {
-  const _SignOutTile();
+  final VoidCallback onSignOut;
+  const _SignOutTile({required this.onSignOut});
 
   @override
   Widget build(BuildContext context) {
@@ -613,9 +670,7 @@ class _SignOutTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () {
-            // TODO: supabase.auth.signOut() then navigate to /login
-          },
+          onTap: onSignOut,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
