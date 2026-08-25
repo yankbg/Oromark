@@ -24,11 +24,11 @@ export function PageHeader({
             {back.label}
           </Link>
         ) : null}
-        <h1 className="font-display text-2xl font-semibold tracking-[-0.01em] text-foreground text-balance">
+        <h1 className="font-display text-3xl font-semibold tracking-[-0.02em] text-foreground text-balance">
           {title}
         </h1>
         {description ? (
-          <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-2 text-base text-muted-foreground">{description}</p>
         ) : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

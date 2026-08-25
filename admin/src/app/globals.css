@@ -152,6 +152,25 @@
   --font-display: var(--font-display);
   --font-mono: var(--font-data);
 
+  /* Type scale — a dense-product ratio (~1.1-1.2), tuned up from Tailwind's
+     defaults because this dashboard had drifted to arbitrary sub-12px sizes
+     (11px captions, 13.5px nav labels) presented as normal reading text.
+     13px is the floor anywhere; 14px is the default body/nav/table size. */
+  --text-xs: 0.8125rem; /* 13px — table headers, captions, meta */
+  --text-xs--line-height: 1.15rem;
+  --text-sm: 0.875rem; /* 14px — default body, nav labels, form text */
+  --text-sm--line-height: 1.35rem;
+  --text-base: 0.9375rem; /* 15px — emphasized body, card titles at sm */
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.0625rem; /* 17px — section/card headings, sidebar wordmark */
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.25rem; /* 20px — sub-page headings */
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem; /* 24px */
+  --text-2xl--line-height: 1.9rem;
+  --text-3xl: 1.875rem; /* 30px — page titles */
+  --text-3xl--line-height: 2.25rem;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

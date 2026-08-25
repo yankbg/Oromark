@@ -52,7 +52,7 @@ export function EnrollmentManager({
     <div className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+          <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
             Enrolled students
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">

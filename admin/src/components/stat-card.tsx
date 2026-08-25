@@ -1,5 +1,7 @@
-import type { LucideIcon } from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
 import { cn } from "@/lib/utils";
+
+type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
 export function StatCard({
   label,
@@ -11,7 +13,7 @@ export function StatCard({
 }: {
   label: string;
   value: string | number;
-  icon: LucideIcon;
+  icon: IconComponent;
   hint?: string;
   hintTone?: "neutral" | "positive";
   accent?: "primary" | "accent" | "success" | "secondary";
@@ -24,10 +26,10 @@ export function StatCard({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-xl border border-border bg-card p-5 shadow-[var(--oro-shadow-xs)] transition-shadow hover:shadow-[var(--oro-shadow-pop)]">
       <div className="flex items-start justify-between gap-3">
-        <div className={cn("flex size-9 items-center justify-center rounded-lg", accentClasses[accent])}>
-          <Icon className="size-4.5" />
+        <div className={cn("flex size-10 items-center justify-center rounded-lg", accentClasses[accent])}>
+          <Icon className="size-5" aria-hidden="true" />
         </div>
       </div>
       <p className="mt-4 font-mono text-[1.75rem] leading-none font-medium tracking-tight text-foreground">

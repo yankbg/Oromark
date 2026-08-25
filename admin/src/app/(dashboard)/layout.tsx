@@ -21,10 +21,10 @@ export default async function DashboardLayout({
       <SidebarProvider className="bg-[var(--oro-page-bg)]">
         <AppSidebar />
         <SidebarInset>
-          <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-5">
-            <SidebarTrigger />
+          <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-6">
+            <SidebarTrigger className="size-8" />
             <Separator orientation="vertical" className="h-5" />
-            <span className="font-display text-sm font-medium text-foreground">
+            <span className="font-display text-base font-medium text-foreground">
               OROmark Admin
             </span>
             <span className="text-sm text-muted-foreground">

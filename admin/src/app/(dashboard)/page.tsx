@@ -1,8 +1,18 @@
 import Link from "next/link";
-import { GraduationCap, UsersRound, BookOpen, Radio, TrendingUp } from "lucide-react";
+import {
+  AcademicCapIcon,
+  UserGroupIcon,
+  BookOpenIcon,
+  SignalIcon,
+  ChartBarIcon,
+  ChartPieIcon,
+  TrophyIcon,
+  ClockIcon,
+} from "@heroicons/react/24/outline";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { SessionStatusBadge } from "@/components/session-status-badge";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -11,7 +21,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getDashboardStats, getRecentSessions } from "@/lib/actions/dashboard";
+import { AttendanceTrendChart } from "@/components/charts/attendance-trend-chart";
+import { AttendanceBreakdownChart } from "@/components/charts/attendance-breakdown-chart";
+import { TopCoursesChart } from "@/components/charts/top-courses-chart";
+import {
+  getDashboardStats,
+  getRecentSessions,
+  getAttendanceTrend,
+  getAttendanceBreakdown,
+  getTopCourses,
+} from "@/lib/actions/dashboard";
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -23,7 +42,13 @@ function formatDate(iso: string) {
 }
 
 export default async function OverviewPage() {
-  const [stats, sessions] = await Promise.all([getDashboardStats(), getRecentSessions()]);
+  const [stats, sessions, trend, breakdown, topCourses] = await Promise.all([
+    getDashboardStats(),
+    getRecentSessions(),
+    getAttendanceTrend(14),
+    getAttendanceBreakdown(),
+    getTopCourses(6),
+  ]);
 
   return (
     <div>
@@ -33,35 +58,108 @@ export default async function OverviewPage() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Students" value={stats.studentCount} icon={GraduationCap} accent="primary" />
-        <StatCard label="Lecturers" value={stats.lecturerCount} icon={UsersRound} accent="secondary" />
-        <StatCard label="Courses" value={stats.courseCount} icon={BookOpen} accent="accent" />
+        <StatCard label="Students" value={stats.studentCount} icon={AcademicCapIcon} accent="primary" />
+        <StatCard label="Lecturers" value={stats.lecturerCount} icon={UserGroupIcon} accent="secondary" />
+        <StatCard label="Courses" value={stats.courseCount} icon={BookOpenIcon} accent="accent" />
         <StatCard
           label="Live sessions"
           value={stats.liveSessionCount}
-          icon={Radio}
+          icon={SignalIcon}
           accent={stats.liveSessionCount > 0 ? "success" : "primary"}
           hint={`${stats.sessionCount} total synced`}
           hintTone={stats.liveSessionCount > 0 ? "positive" : "neutral"}
         />
       </div>
 
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div className="flex items-center gap-2">
+              <ChartBarIcon className="size-4.5 text-muted-foreground" />
+              <div>
+                <CardTitle>Attendance trend</CardTitle>
+                <CardDescription>Last 14 days, synced records</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <AttendanceTrendChart data={trend} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 space-y-0">
+            <ChartPieIcon className="size-4.5 text-muted-foreground" />
+            <div>
+              <CardTitle>Attendance breakdown</CardTitle>
+              <CardDescription>All-time, synced records</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <AttendanceBreakdownChart
+              present={breakdown.present}
+              late={breakdown.late}
+              absent={breakdown.absent}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center gap-2 space-y-0">
+            <TrophyIcon className="size-4.5 text-muted-foreground" />
+            <div>
+              <CardTitle>Top courses by attendance</CardTitle>
+              <CardDescription>Cached average across sessions</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <TopCoursesChart courses={topCourses} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 space-y-0">
+            <ClockIcon className="size-4.5 text-muted-foreground" />
+            <div>
+              <CardTitle>At a glance</CardTitle>
+              <CardDescription>Synced totals</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2.5">
+              <span className="text-sm text-muted-foreground">Total sessions synced</span>
+              <span className="font-mono text-sm font-medium tabular-nums text-foreground">
+                {stats.sessionCount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2.5">
+              <span className="text-sm text-muted-foreground">Attendance records</span>
+              <span className="font-mono text-sm font-medium tabular-nums text-foreground">
+                {stats.attendanceRecordCount}
+              </span>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2.5">
+              <span className="text-sm text-muted-foreground">Avg. attendance</span>
+              <span className="font-mono text-sm font-medium tabular-nums text-[var(--oro-success)]">
+                {stats.avgAttendance !== null ? `${stats.avgAttendance}%` : "—"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="mt-8 flex items-end justify-between">
-        <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+        <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
           Recent sessions
         </h2>
-        {stats.avgAttendance !== null ? (
-          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <TrendingUp className="size-3.5 text-[var(--oro-success)]" />
-            {stats.avgAttendance}% avg. attendance across courses
-          </p>
-        ) : null}
       </div>
 
       <div className="mt-3 overflow-hidden rounded-xl border border-border bg-card">
         {sessions.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-            <Radio className="size-8 text-muted-foreground/50" />
+            <SignalIcon className="size-8 text-muted-foreground/50" />
             <p className="text-sm font-medium text-foreground">No sessions synced yet</p>
             <p className="text-sm text-muted-foreground">
               Sessions appear here once a lecturer&apos;s phone syncs after class.
