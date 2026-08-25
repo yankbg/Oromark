@@ -49,13 +49,13 @@ export function EnrollmentManager({
   }, [state.success]);
 
   return (
-    <div className="rounded-lg border border-border bg-card">
-      <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-display text-base font-semibold text-foreground">
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
             Enrolled students
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {enrolled.length} student{enrolled.length === 1 ? "" : "s"} enrolled in {courseCode}
           </p>
         </div>
@@ -82,13 +82,13 @@ export function EnrollmentManager({
       </div>
 
       {state.error ? (
-        <p role="alert" className="px-4 pt-3 text-sm text-destructive">
+        <p role="alert" className="px-5 pt-3 text-sm text-destructive">
           {state.error}
         </p>
       ) : null}
 
       {enrolled.length === 0 ? (
-        <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+        <p className="px-5 py-10 text-center text-sm text-muted-foreground">
           No students enrolled yet.
         </p>
       ) : (

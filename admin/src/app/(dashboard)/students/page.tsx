@@ -49,17 +49,17 @@ export default async function StudentsPage({
 
       <form className="mb-4 max-w-sm">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             name="q"
             placeholder="Search by name, ID, email, or programme"
             defaultValue={q}
-            className="pl-8"
+            className="pl-9"
           />
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {students.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
             <GraduationCap className="size-8 text-muted-foreground/50" />
@@ -93,7 +93,7 @@ export default async function StudentsPage({
                     >
                       <Avatar className="size-8">
                         <AvatarImage src={s.avatar_url ?? undefined} alt="" />
-                        <AvatarFallback className="text-xs">
+                        <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
                           {initials(s.student_name)}
                         </AvatarFallback>
                       </Avatar>

@@ -3,6 +3,7 @@ import { Plus, Search, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Table,
   TableBody,
@@ -12,6 +13,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listLecturers } from "@/lib/actions/lecturers";
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
 
 export default async function LecturersPage({
   searchParams,
@@ -38,17 +49,17 @@ export default async function LecturersPage({
 
       <form className="mb-4 max-w-sm">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             name="q"
             placeholder="Search by name, ID, email, or department"
             defaultValue={q}
-            className="pl-8"
+            className="pl-9"
           />
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {lecturers.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
             <UsersRound className="size-8 text-muted-foreground/50" />
@@ -75,9 +86,14 @@ export default async function LecturersPage({
                   <TableCell className="p-0">
                     <Link
                       href={`/lecturers/${encodeURIComponent(l.lecturer_id)}`}
-                      className="block px-4 py-3 font-medium text-foreground"
+                      className="flex items-center gap-3 px-4 py-3"
                     >
-                      {l.lecturer_name}
+                      <Avatar className="size-8">
+                        <AvatarFallback className="bg-[var(--oro-secondary)]/10 text-xs font-medium text-[var(--oro-secondary)]">
+                          {initials(l.lecturer_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-foreground">{l.lecturer_name}</span>
                     </Link>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">

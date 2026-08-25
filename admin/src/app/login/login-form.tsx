@@ -12,7 +12,7 @@ export function LoginForm({ from }: { from: string }) {
   const [state, formAction, pending] = useActionState(login, undefined);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-[var(--oro-bg-primary)] p-8 shadow-2xl shadow-black/20">
+    <div className="rounded-xl border border-white/10 bg-[var(--oro-bg-primary)] p-8 shadow-[0_24px_60px_-20px_rgb(0_0_0_/_0.45)]">
       <div className="mb-7 flex flex-col items-center text-center">
         <Image
           src="/oromark-wordmark.png"

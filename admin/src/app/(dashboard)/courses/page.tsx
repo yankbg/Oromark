@@ -39,17 +39,17 @@ export default async function CoursesPage({
 
       <form className="mb-4 max-w-sm">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             name="q"
             placeholder="Search by code, name, or group"
             defaultValue={q}
-            className="pl-8"
+            className="pl-9"
           />
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {courses.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
             <BookOpen className="size-8 text-muted-foreground/50" />
@@ -77,7 +77,7 @@ export default async function CoursesPage({
                   <TableCell className="p-0">
                     <Link
                       href={`/courses/${encodeURIComponent(c.course_code)}`}
-                      className="block px-4 py-3 font-medium text-foreground"
+                      className="block px-4 py-3.5 font-medium text-foreground"
                     >
                       {c.course_name}
                       {c.course_group ? (

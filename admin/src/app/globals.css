@@ -9,7 +9,7 @@
 /* neutrals only.                                                        */
 /* ---------------------------------------------------------------------- */
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
   /* Brand */
   --oro-primary: #0f6e56; /* teal */
@@ -41,6 +41,29 @@
   --oro-text-secondary: #6b7280;
   --oro-text-tertiary: #9ca3af;
   --oro-border: #e5e7eb;
+
+  /* Page backdrop — a true neutral gray tinted ~1% toward the brand's teal
+     hue, distinct from card white, so the sidebar+content read as a
+     floating panel rather than an edge-to-edge fill. */
+  --oro-page-bg: #eef1f0;
+
+  /* Elevation — soft multi-layer shadows only. Never pair with a border on
+     the same element (the "ghost card" anti-pattern). */
+  --oro-shadow-xs: 0 1px 2px 0 rgb(16 24 21 / 0.05);
+  --oro-shadow-panel:
+    0 1px 1px 0 rgb(16 24 21 / 0.04), 0 18px 32px -16px rgb(16 24 21 / 0.16);
+  --oro-shadow-pop:
+    0 2px 4px 0 rgb(16 24 21 / 0.04), 0 12px 24px -8px rgb(16 24 21 / 0.14);
+
+  /* Spacing rhythm — 4px base scale used consistently for card padding,
+     section gaps, and stack gaps across every page. */
+  --oro-space-1: 0.25rem;
+  --oro-space-2: 0.5rem;
+  --oro-space-3: 0.75rem;
+  --oro-space-4: 1rem;
+  --oro-space-5: 1.25rem;
+  --oro-space-6: 1.5rem;
+  --oro-space-8: 2rem;
 
   /* shadcn semantic mapping */
   --background: var(--oro-bg-primary);
@@ -136,8 +159,14 @@
 }
 
 body {
-  background: var(--oro-bg-secondary);
+  background: var(--oro-page-bg);
   color: var(--foreground);
+}
+
+/* Tabular figures everywhere numbers appear in data-dense contexts. */
+.font-mono,
+[data-slot="table-cell"] {
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {

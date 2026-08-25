@@ -42,20 +42,23 @@ export default async function OverviewPage() {
           icon={Radio}
           accent={stats.liveSessionCount > 0 ? "success" : "primary"}
           hint={`${stats.sessionCount} total synced`}
+          hintTone={stats.liveSessionCount > 0 ? "positive" : "neutral"}
         />
       </div>
 
-      <div className="mt-8 flex items-center justify-between">
-        <h2 className="font-display text-base font-semibold text-foreground">Recent sessions</h2>
+      <div className="mt-8 flex items-end justify-between">
+        <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+          Recent sessions
+        </h2>
         {stats.avgAttendance !== null ? (
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <TrendingUp className="size-3.5" />
+            <TrendingUp className="size-3.5 text-[var(--oro-success)]" />
             {stats.avgAttendance}% avg. attendance across courses
           </p>
         ) : null}
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="mt-3 overflow-hidden rounded-xl border border-border bg-card">
         {sessions.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
             <Radio className="size-8 text-muted-foreground/50" />
@@ -83,7 +86,7 @@ export default async function OverviewPage() {
                   <TableCell className="p-0">
                     <Link
                       href={`/courses/${encodeURIComponent(s.course_code)}`}
-                      className="block px-4 py-3 font-medium text-foreground"
+                      className="block px-4 py-3.5 font-medium text-foreground"
                     >
                       {s.course_name}
                     </Link>

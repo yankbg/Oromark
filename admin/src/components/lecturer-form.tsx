@@ -29,35 +29,37 @@ export function LecturerForm({
   }, [state.success, router, lecturer]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-5">
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Lecturer ID" name="lecturer_id" defaultValue={lecturer?.lecturer_id} required />
-        <Field label="Full name" name="lecturer_name" defaultValue={lecturer?.lecturer_name} required />
-        <Field
-          label="Email"
-          name="lecturer_email"
-          type="email"
-          defaultValue={lecturer?.lecturer_email}
-          required
-        />
-        <Field label="Department" name="department" defaultValue={lecturer?.department} required />
-      </div>
+    <div className="rounded-xl border border-border bg-card p-6">
+      <form action={formAction} className="flex flex-col gap-5">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Lecturer ID" name="lecturer_id" defaultValue={lecturer?.lecturer_id} required />
+          <Field label="Full name" name="lecturer_name" defaultValue={lecturer?.lecturer_name} required />
+          <Field
+            label="Email"
+            name="lecturer_email"
+            type="email"
+            defaultValue={lecturer?.lecturer_email}
+            required
+          />
+          <Field label="Department" name="department" defaultValue={lecturer?.department} required />
+        </div>
 
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+        {state.error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {state.error}
+          </p>
+        ) : null}
 
-      <div className="flex gap-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : submitLabel}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => router.back()}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+        <div className="flex gap-2 border-t border-border pt-5">
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : submitLabel}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => router.back()}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </div>
   );
 }
 
