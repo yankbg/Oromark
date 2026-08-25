@@ -42,12 +42,12 @@ Future<void> main() async {
     exit(1);
   }
 
-  final connection = await _openConnection(dbUrl);
-  print('Connected to Postgres.');
+  final pool = _openPool(dbUrl);
+  print('Postgres pool ready.');
 
   final router = Router()
     ..get('/health', (Request req) => Response.ok('ok'))
-    ..post('/sync', _handleSync(connection));
+    ..post('/sync', _handleSync(pool));
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
@@ -59,7 +59,11 @@ Future<void> main() async {
   print('OROmark sync server listening on :${server.port}');
 }
 
-Future<Connection> _openConnection(String dbUrl) async {
+// A pool instead of a single long-lived Connection: Neon closes idle
+// connections and Render's free tier cold-starts/sleeps, both of which
+// would silently kill a single persistent connection with no way back.
+// The pool opens a fresh underlying connection per request as needed.
+Pool _openPool(String dbUrl) {
   final uri = Uri.parse(dbUrl);
   final userInfo = uri.userInfo.split(':');
   final endpoint = Endpoint(
@@ -69,9 +73,9 @@ Future<Connection> _openConnection(String dbUrl) async {
     username: Uri.decodeComponent(userInfo[0]),
     password: Uri.decodeComponent(userInfo[1]),
   );
-  return Connection.open(
-    endpoint,
-    settings: ConnectionSettings(sslMode: SslMode.require),
+  return Pool.withEndpoints(
+    [endpoint],
+    settings: const PoolSettings(sslMode: SslMode.require),
   );
 }
 
@@ -87,7 +91,7 @@ Middleware _requireApiKey(String expected) {
   };
 }
 
-Handler _handleSync(Connection db) {
+Handler _handleSync(Session db) {
   return (Request request) async {
     final Map<String, dynamic> body;
     try {
@@ -115,9 +119,9 @@ Handler _handleSync(Connection db) {
 }
 
 Future<int> _upsertAll(
-  Connection db,
+  Session db,
   List rows,
-  Future<void> Function(Connection db, Map<String, dynamic> row) upsert,
+  Future<void> Function(Session db, Map<String, dynamic> row) upsert,
 ) async {
   var count = 0;
   for (final row in rows) {
@@ -127,7 +131,7 @@ Future<int> _upsertAll(
   return count;
 }
 
-Future<void> _upsertCourse(Connection db, Map<String, dynamic> r) => db.execute(
+Future<void> _upsertCourse(Session db, Map<String, dynamic> r) => db.execute(
   Sql.named('''
     insert into courses (course_code, course_name, course_group, enrolled, avg_attendance, lecturer_id)
     values (@courseCode, @courseName, @group, @enrolled, @avgAttendance, @lecturerId)
@@ -148,7 +152,7 @@ Future<void> _upsertCourse(Connection db, Map<String, dynamic> r) => db.execute(
   },
 );
 
-Future<void> _upsertLecturer(Connection db, Map<String, dynamic> r) => db.execute(
+Future<void> _upsertLecturer(Session db, Map<String, dynamic> r) => db.execute(
   Sql.named('''
     insert into lecturers (lecturer_id, lecturer_name, lecturer_email, department)
     values (@lecturerId, @lecturerName, @lecturerEmail, @department)
@@ -165,7 +169,7 @@ Future<void> _upsertLecturer(Connection db, Map<String, dynamic> r) => db.execut
   },
 );
 
-Future<void> _upsertStudent(Connection db, Map<String, dynamic> r) => db.execute(
+Future<void> _upsertStudent(Session db, Map<String, dynamic> r) => db.execute(
   Sql.named('''
     insert into students (student_id, student_name, student_email, phone_number, programme, year_of_study, avatar_url)
     values (@studentId, @studentName, @studentEmail, @phoneNumber, @programme, @yearOfStudy, @avatarUrl)
@@ -188,7 +192,7 @@ Future<void> _upsertStudent(Connection db, Map<String, dynamic> r) => db.execute
   },
 );
 
-Future<void> _upsertEnrolledStudent(Connection db, Map<String, dynamic> r) => db.execute(
+Future<void> _upsertEnrolledStudent(Session db, Map<String, dynamic> r) => db.execute(
   Sql.named('''
     insert into enrolled_students (student_id, course_code, full_name)
     values (@studentId, @courseCode, @fullName)
@@ -202,7 +206,7 @@ Future<void> _upsertEnrolledStudent(Connection db, Map<String, dynamic> r) => db
   },
 );
 
-Future<void> _upsertSession(Connection db, Map<String, dynamic> r) => db.execute(
+Future<void> _upsertSession(Session db, Map<String, dynamic> r) => db.execute(
   Sql.named('''
     insert into sessions (session_id, course_code, course_name, lecturer_name, room_code, start_time, end_time, present_cutoff, late_cutoff, status, created_at)
     values (@sessionId, @courseCode, @courseName, @lecturerName, @roomCode, @startTime, @endTime, @presentCutoff, @lateCutoff, @status, @createdAt)
@@ -225,7 +229,7 @@ Future<void> _upsertSession(Connection db, Map<String, dynamic> r) => db.execute
   },
 );
 
-Future<void> _upsertAttendanceRecord(Connection db, Map<String, dynamic> r) => db.execute(
+Future<void> _upsertAttendanceRecord(Session db, Map<String, dynamic> r) => db.execute(
   Sql.named('''
     insert into attendance_records (session_id, student_id, status, "timestamp")
     values (@sessionId, @studentId, @status, @timestamp)
