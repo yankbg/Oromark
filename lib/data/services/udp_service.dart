@@ -156,6 +156,27 @@ class UdpService {
   void stopBroadcasting() {
 
     try{
+      // Tell any listening students right away that this session is over,
+      // instead of just going silent — otherwise a phone that already
+      // detected it has no way to know it ended until its natural cutoff
+      // time (or never, if the app missed that check), and keeps showing
+      // it as joinable. Sent a few times back-to-back since UDP can drop
+      // packets and this is the only notice students will get.
+      if (_socket != null && _broadcastAddress != null && _sessionData != null) {
+        final endedPayload = {
+          'sessionId': _sessionData!['sessionId'],
+          'status': 'ENDED',
+        };
+        final data = utf8.encode(jsonEncode(endedPayload));
+        for (var i = 0; i < 3; i++) {
+          try {
+            _socket!.send(data, InternetAddress(_broadcastAddress!), NetworkConstants.udpPort);
+          } catch (e) {
+            print('[UDP_SERVICE] Error sending session-ended broadcast: $e');
+          }
+        }
+      }
+
       _broadcastAddress = null;
       _timer?.cancel();
       _timer = null;
