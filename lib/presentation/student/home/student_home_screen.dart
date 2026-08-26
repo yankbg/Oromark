@@ -91,10 +91,17 @@ import 'student_home_controller.dart';
       // Watch the kept-alive provider
       final discoveredSessionsAsync = ref.watch(discoveredSessionsProvider);
 
-      // Update UI when sessions arrive
+      // Update UI when sessions arrive — and just as importantly, clear the
+      // card once the list goes empty (session ended/pruned). Without the
+      // else branch here, a session that's gone from the provider's list
+      // stays stuck on screen forever, since nothing ever calls
+      // _controller.clearSession().
       discoveredSessionsAsync.whenData((sessions) {
-        if (sessions.isNotEmpty && mounted) {
+        if (!mounted) return;
+        if (sessions.isNotEmpty) {
           _controller.selectSession(sessions.first);  // Update controller
+        } else if (_controller.session != null) {
+          _controller.clearSession();
         }
       });
       return Scaffold(
