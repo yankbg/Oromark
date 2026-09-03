@@ -43,7 +43,18 @@ Future<void> main() async {
   // Fire-and-forget: must never block startup or affect the live
   // UDP/HTTP attendance flow, which stays entirely local and offline.
   // No-ops silently if SYNC_API_URL isn't configured or there's no internet.
-  unawaited(SyncService(AppDatabase()).syncNow());
+  //
+  // One instance reused for both this and the periodic retry below —
+  // session_notifier.dart's endSession() also syncs immediately when a
+  // session ends, but a session that ended without internet (or a
+  // bootstrap sync that failed) would otherwise sit unsynced until the
+  // app's next cold start. This backfills it periodically instead,
+  // without waiting for the lecturer to relaunch the app.
+  final syncService = SyncService(AppDatabase());
+  unawaited(syncService.syncNow());
+  Timer.periodic(const Duration(minutes: 10), (_) {
+    unawaited(syncService.syncNow());
+  });
 
   runApp(
     // ProviderScope is required — wraps the entire app for Riverpod

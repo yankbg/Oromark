@@ -10,6 +10,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
   import '../providers/app_database_provider.dart';
   import '../providers/http_server_provider.dart';
   import '../providers/udp_service_provider.dart';
+  import '../data/services/sync_service.dart';
   import 'package:riverpod_annotation/riverpod_annotation.dart';
   
   part 'session_notifier.g.dart';
@@ -207,6 +208,15 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
           final db = ref.read(appDatabaseProvider);
           await db.updateSessionStatus(currentState.sessionId!, 'ENDED');
         }
+
+        // Back up this session to Neon the moment it's finalized, instead
+        // of waiting for the app's next cold start — the lecturer is most
+        // likely to still have Wi-Fi right now, and this is the highest-
+        // value data to not lose if the phone is lost/wiped before then.
+        // Fire-and-forget: never blocks the UI, no-ops if unconfigured or
+        // offline (see sync_service.dart).
+        unawaited(SyncService(ref.read(appDatabaseProvider)).syncNow());
+
         // Mark as ended
         state = SessionState.ended();
       }catch(e){
