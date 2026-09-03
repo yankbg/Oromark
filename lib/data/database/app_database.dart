@@ -415,12 +415,21 @@ class AppDatabase extends _$AppDatabase {
       ..where((s) => s.sessionId.equals(sessionId)))
         .getSingleOrNull();
   }
-  /// Called when session ends to record final status
+  /// Called when session ends to record final status.
+  ///
+  /// Resets [synced] back to false — a session already pushed to Neon
+  /// while still ACTIVE (the periodic background sync can catch one
+  /// mid-flight, not just the sync-on-end call) must not have this status
+  /// change silently dropped: getUnsyncedSessions() only re-picks up rows
+  /// where synced is false, so without this the ENDED transition would
+  /// never reach Neon and the admin dashboard would show it as ACTIVE
+  /// forever.
   Future<void> updateSessionStatus(String sessionId, String newStatus) async {
     await (update(sessions)
       ..where((s) => s.sessionId.equals(sessionId)))
         .write(SessionsCompanion(
       status: Value(newStatus),
+      synced: const Value(false),
     ));
   }
   /// Returns the profile row for the currently logged-in student.
@@ -504,6 +513,12 @@ class AppDatabase extends _$AppDatabase {
         .get();
   }
   /// Insert attendance record after HTTP success
+  /// Same [synced] staleness concern as [updateSessionStatus] — a record
+  /// already pushed to Neon (e.g. a student's normal submission) that then
+  /// gets corrected here (a lecturer's manual override, see
+  /// manual_override_screen.dart) must reset synced to false, or the
+  /// corrected status never reaches Neon since getUnsyncedSessions'
+  /// attendance counterpart only re-picks up rows where synced is false.
   Future<void> insertAttendanceRecord({
     required String sessionId,
     required String studentId,
@@ -521,6 +536,7 @@ class AppDatabase extends _$AppDatabase {
             (old) => AttendanceRecordsCompanion(
           status: Value(status),
               timestamp: Value(submittedAt),
+              synced: const Value(false),
         ),
       ),
     );
