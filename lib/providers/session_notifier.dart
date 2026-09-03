@@ -10,6 +10,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
   import '../providers/app_database_provider.dart';
   import '../providers/http_server_provider.dart';
   import '../providers/udp_service_provider.dart';
+  import '../providers/ble_service_provider.dart';
   import 'package:riverpod_annotation/riverpod_annotation.dart';
   
   part 'session_notifier.g.dart';
@@ -105,6 +106,17 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
           presentCutoff: presentCutoff,
           lateCutoff: lateCutoff,
         );
+
+        // BLE proximity gate: advertise a short token derived from the
+        // sessionId so students can verify they're actually near this
+        // device, not just on the same Wi-Fi subnet. Attempted before the
+        // broadcast payload is built so students are only told to require
+        // the gate if advertising actually started — not every phone can
+        // advertise (peripheral mode), and if it silently failed but the
+        // payload still said "required", every student would fail it.
+        final bleAvailable = await ref.read(bleServiceProvider).startAdvertising(sessionId);
+        print('[SESSION_NOTIFIER] BLE advertising available: $bleAvailable');
+
         final payload = {
           'sessionId': sessionId,
           'courseCode': courseCode,
@@ -115,6 +127,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
           'startTime': now.toIso8601String(),
           'endTime': lateCutoff.toIso8601String(),
           'isLate': false,
+          'bleAvailable': bleAvailable,
         };
         print('[LECTURER] broadcast payload: $payload');
         print('[LECTURER] payload keys: ${payload.keys.toList()}');
@@ -170,6 +183,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
           state = SessionState.idle();
           await ref.read(httpServerProvider).stopServer();
           ref.read(udpServiceProvider).stopBroadcasting();
+          await ref.read(bleServiceProvider).stopAdvertising();
           print('[SESSION_NOTIFIER] startSession error: $e');
           print('[SESSION_NOTIFIER] stack trace: $st');
           rethrow;
@@ -195,6 +209,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
         print('[SESSION_NOTIFIER] Cancelled scheduled timers on session end');
         // Stop advertising new submissions
         ref.read(udpServiceProvider).stopBroadcasting();
+        await ref.read(bleServiceProvider).stopAdvertising();
         await ref.read(httpServerProvider).stopServer();
         await ref.read(localAttendanceServerProvider).stop();
 

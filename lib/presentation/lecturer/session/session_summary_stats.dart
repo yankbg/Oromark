@@ -311,6 +311,7 @@ class _AbsentStudentsSectionState extends State<AbsentStudentsSection> {
           if (_expanded) ...[
             ...displayedStudents.map((s) => _AbsentStudentRow(
               student: s,
+              absentStudents: widget.absentStudents,
               sessionId: widget.sessionId,
               onOverride: widget.onOverride,
             )),
@@ -338,11 +339,13 @@ class _AbsentStudentsSectionState extends State<AbsentStudentsSection> {
 
 class _AbsentStudentRow extends StatelessWidget {
   final StudentEntry student;
+  final List<StudentEntry> absentStudents;
   final String       sessionId;
   final void Function(StudentEntry student, String newStatus) onOverride;
 
   const _AbsentStudentRow({
     required this.student,
+    required this.absentStudents,
     required this.sessionId,
     required this.onOverride,
   });
@@ -384,16 +387,22 @@ class _AbsentStudentRow extends StatelessWidget {
           ),
           TextButton.icon(
             onPressed: () async {
-              final newStatus = await Navigator.of(context).push<String>(
+              // The result names which student was actually overridden —
+              // not necessarily this row's [student], since the override
+              // screen lets the lecturer search and pick a different one
+              // from the same absent list.
+              final result = await Navigator.of(context)
+                  .push<({StudentEntry student, String status})>(
                 MaterialPageRoute(
                   builder: (_) => ManualOverrideScreen(
                     student: student,
+                    absentStudents: absentStudents,
                     sessionId: sessionId,
                   ),
                 ),
               );
-              if (newStatus != null) {
-                onOverride(student, newStatus);
+              if (result != null) {
+                onOverride(result.student, result.status);
               }
             },
             icon: const Icon(Icons.check_circle_rounded,
