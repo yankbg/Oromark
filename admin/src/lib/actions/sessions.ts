@@ -47,6 +47,24 @@ export async function listSessions(query?: string): Promise<SessionWithCounts[]>
   `;
 }
 
+/** A single course's sessions, newest first — same shape as [listSessions]
+ * but scoped by an exact course_code match, for the course detail page's
+ * drill-down (Courses → this course's sessions → session detail). */
+export async function getSessionsForCourse(courseCode: string): Promise<SessionWithCounts[]> {
+  return sql<SessionWithCounts[]>`
+    select
+      s.*,
+      coalesce(sum(case when lower(a.status) = 'present' then 1 else 0 end), 0)::int as present,
+      coalesce(sum(case when lower(a.status) = 'late' then 1 else 0 end), 0)::int as late,
+      coalesce(sum(case when lower(a.status) = 'absent' then 1 else 0 end), 0)::int as absent
+    from sessions s
+    left join attendance_records a on a.session_id = s.session_id
+    where s.course_code = ${courseCode}
+    group by s.session_id
+    order by s.start_time desc
+  `;
+}
+
 export interface SessionAttendanceRow {
   student_id: string;
   student_name: string | null;

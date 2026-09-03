@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { CourseForm } from "@/components/course-form";
 import { EnrollmentManager } from "@/components/enrollment-manager";
+import { SessionsTable } from "@/components/sessions-table";
 import { CourseDeleteButton } from "./course-delete-button";
 import { getCourse, updateCourse, deleteCourse } from "@/lib/actions/courses";
 import { listLecturerOptions } from "@/lib/actions/lecturers";
@@ -11,6 +12,8 @@ import {
   enrollStudent,
   unenrollStudent,
 } from "@/lib/actions/enrollment";
+import { getSessionsForCourse } from "@/lib/actions/sessions";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export default async function CourseDetailPage({
   params,
@@ -28,6 +31,15 @@ export default async function CourseDetailPage({
   ]);
 
   if (!course) notFound();
+
+  // Fetched after the notFound() check (only makes sense for a real
+  // course) and independently from the Promise.all above, so a sessions
+  // query failure degrades to an empty list instead of taking the whole
+  // page down.
+  const { data: sessions, failed: sessionsFailed } = await safeFetch(
+    () => getSessionsForCourse(course.course_code),
+    []
+  );
 
   const boundUpdate = updateCourse.bind(null, course.course_code);
   const boundDelete = deleteCourse.bind(null, course.course_code);
@@ -57,6 +69,23 @@ export default async function CourseDetailPage({
         enrollAction={boundEnroll}
         unenrollAction={boundUnenroll}
       />
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">
+          Sessions ({sessions.length})
+        </h2>
+        {sessionsFailed ? (
+          <div className="mb-4 rounded-lg border border-[var(--oro-warning)]/30 bg-[var(--oro-warning)]/10 px-4 py-2.5 text-sm text-[var(--oro-warning)]">
+            Couldn&apos;t load sessions just now — refresh to retry.
+          </div>
+        ) : null}
+        <SessionsTable
+          sessions={sessions}
+          showCourse={false}
+          emptyTitle="No sessions yet"
+          emptyHint="Sessions appear here once a lecturer teaching this course ends a class and their phone syncs."
+        />
+      </div>
     </div>
   );
 }
