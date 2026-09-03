@@ -1,25 +1,9 @@
-import Link from "next/link";
-import { Search, CalendarX2 } from "lucide-react";
+import { Search } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
-import { SessionStatusBadge } from "@/components/session-status-badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { SessionsTable } from "@/components/sessions-table";
 import { listSessions } from "@/lib/actions/sessions";
 import { safeFetch } from "@/lib/safe-fetch";
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 export default async function SessionsPage({
   searchParams,
@@ -54,66 +38,15 @@ export default async function SessionsPage({
         </div>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        {sessions.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-            <CalendarX2 className="size-8 text-muted-foreground/50" />
-            <p className="text-sm font-medium text-foreground">
-              {q ? "No sessions match that search" : "No sessions yet"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {q
-                ? "Try a different course, room, or lecturer."
-                : "Sessions appear here once a lecturer ends a class and their phone syncs."}
-            </p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Course</TableHead>
-                <TableHead>Room</TableHead>
-                <TableHead className="hidden md:table-cell">Lecturer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden sm:table-cell">Started</TableHead>
-                <TableHead className="text-right">Present</TableHead>
-                <TableHead className="text-right">Late</TableHead>
-                <TableHead className="text-right">Absent</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sessions.map((s) => (
-                <TableRow key={s.session_id} className="cursor-pointer">
-                  <TableCell className="p-0">
-                    <Link
-                      href={`/sessions/${encodeURIComponent(s.session_id)}`}
-                      className="flex flex-col gap-0.5 px-4 py-3"
-                    >
-                      <span className="font-medium text-foreground">{s.course_code}</span>
-                      <span className="text-xs text-muted-foreground">{s.course_name}</span>
-                    </Link>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {s.room_code}
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground md:table-cell">
-                    {s.lecturer_name ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <SessionStatusBadge status={s.status} />
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground sm:table-cell">
-                    {formatDateTime(s.start_time)}
-                  </TableCell>
-                  <TableCell className="text-right text-foreground">{s.present}</TableCell>
-                  <TableCell className="text-right text-foreground">{s.late}</TableCell>
-                  <TableCell className="text-right text-foreground">{s.absent}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      <SessionsTable
+        sessions={sessions}
+        emptyTitle={q ? "No sessions match that search" : "No sessions yet"}
+        emptyHint={
+          q
+            ? "Try a different course, room, or lecturer."
+            : "Sessions appear here once a lecturer ends a class and their phone syncs."
+        }
+      />
     </div>
   );
 }
