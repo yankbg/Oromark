@@ -30,6 +30,12 @@ class DetectedSession {
   final String lecturerIP;
   final int lecturerPort;
   final bool isLateFromBroadcast;
+  // Whether the lecturer's device managed to start BLE advertising for
+  // this session (see ble_service.dart) — false on hardware that can't
+  // advertise (peripheral mode). Gates whether ConfirmationScreen requires
+  // a BLE proximity match before submitting: it's never required when the
+  // lecturer's own device couldn't put it up in the first place.
+  final bool bleAvailable;
 
   const DetectedSession({
     required this.sessionId,
@@ -43,6 +49,7 @@ class DetectedSession {
     required this.lecturerIP,
     required this.lecturerPort,
     this.isLateFromBroadcast = false,
+    this.bleAvailable = false,
   });
 
   // Trust the lecturer's broadcast instead of computing this from the
