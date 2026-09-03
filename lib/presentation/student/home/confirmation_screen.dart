@@ -11,6 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_state_provider.dart';
+import '../../../providers/ble_service_provider.dart';
+import '../../../data/services/ble_service.dart';
 import 'student_home_controller.dart'; // DetectedSession lives here
 
 class ConfirmationScreen extends ConsumerStatefulWidget {
@@ -119,6 +121,57 @@ class _ConfirmationScreenState extends ConsumerState<ConfirmationScreen> {
         setState(() => _codeError = 'You are not logged in');
         return;
       }
+
+      // BLE proximity gate — only enforced when the lecturer's device
+      // actually managed to advertise it (see session_notifier.dart).
+      // Every non-match blocks, including [unsupported] (no BLE hardware
+      // at all) — there is no soft-pass case left. A phone that genuinely
+      // can't do the check is a rare, legitimate edge case, but the fix
+      // for that is the lecturer's manual override after the session
+      // (manual_override_screen.dart), not a silent bypass baked into the
+      // gate itself — the same bypass would apply to anyone who just
+      // wanted to dodge the check, not only genuine hardware gaps.
+      if (widget.session.bleAvailable) {
+        final proximity = await ref
+            .read(bleServiceProvider)
+            .scanForToken(widget.session.sessionId);
+        switch (proximity) {
+          case BleProximityResult.matched:
+            break;
+          case BleProximityResult.notMatched:
+            setState(() {
+              _submitting = false;
+              _codeError =
+                  "Couldn't detect the lecturer's device nearby. Move closer and try again.";
+            });
+            HapticFeedback.lightImpact();
+            return;
+          case BleProximityResult.bluetoothOff:
+            setState(() {
+              _submitting = false;
+              _codeError = 'Bluetooth is off. Turn it on to confirm attendance.';
+            });
+            HapticFeedback.lightImpact();
+            return;
+          case BleProximityResult.permissionDenied:
+            setState(() {
+              _submitting = false;
+              _codeError =
+                  'Bluetooth permission is required to confirm attendance. Enable it in Settings.';
+            });
+            HapticFeedback.lightImpact();
+            return;
+          case BleProximityResult.unsupported:
+            setState(() {
+              _submitting = false;
+              _codeError =
+                  "This device can't run the Bluetooth proximity check. Ask your lecturer to confirm your attendance manually.";
+            });
+            HapticFeedback.lightImpact();
+            return;
+        }
+      }
+
       final status = await submitAttendance(
         session: widget.session,
         studentId: authResult.userId,

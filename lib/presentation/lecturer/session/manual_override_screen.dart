@@ -7,10 +7,15 @@ import 'session_controller.dart';
 
 class ManualOverrideScreen extends ConsumerStatefulWidget {
   final StudentEntry student;
+  // The full absent-only list this override screen is allowed to touch —
+  // search below is scoped to it so a lecturer can only ever override a
+  // student who is genuinely absent, never one already marked present/late.
+  final List<StudentEntry> absentStudents;
   final String sessionId;
   const ManualOverrideScreen({
     super.key,
     required this.student,
+    required this.absentStudents,
     required this.sessionId,
   });
 
@@ -21,14 +26,44 @@ class ManualOverrideScreen extends ConsumerStatefulWidget {
 
 class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
+  late StudentEntry _selected = widget.student;
   String _status = 'absent';
   bool _isConfirming = false;
   String? _confirmState; // null / 'success'
 
   @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  /// Matches against [widget.absentStudents] only — never the full roster —
+  /// so search can't be used to reach a present/late student.
+  List<StudentEntry> get _searchResults {
+    final q = _searchCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return const [];
+    return widget.absentStudents
+        .where((s) =>
+            s.studentId != _selected.studentId &&
+            (s.name.toLowerCase().contains(q) ||
+                s.studentId.toLowerCase().contains(q)))
+        .toList();
+  }
+
+  void _selectStudent(StudentEntry student) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selected = student;
+      _searchCtrl.clear();
+    });
   }
 
   Future<void> _onConfirmOverride() async {
@@ -42,7 +77,7 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
     final newStatus = _status.toUpperCase(); // PRESENT / LATE / ABSENT
     await ref.read(appDatabaseProvider).insertAttendanceRecord(
           sessionId: widget.sessionId,
-          studentId: widget.student.studentId,
+          studentId: _selected.studentId,
           status: newStatus,
           submittedAt: DateTime.now().millisecondsSinceEpoch,
         );
@@ -55,7 +90,7 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
     await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
 
-    Navigator.of(context).pop(newStatus);
+    Navigator.of(context).pop((student: _selected, status: newStatus));
   }
 
   @override
@@ -77,13 +112,21 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Search
+                  // Search — scoped to widget.absentStudents only
                   _SearchField(controller: _searchCtrl),
+
+                  if (_searchResults.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _SearchResultsList(
+                      results: _searchResults,
+                      onSelect: _selectStudent,
+                    ),
+                  ],
 
                   const SizedBox(height: 24),
 
-                  // Selected student card (static demo data)
-                   _SelectedStudentCard(student: widget.student),
+                  // Selected student card
+                   _SelectedStudentCard(student: _selected),
 
                   const SizedBox(height: 24),
 
@@ -206,6 +249,68 @@ class _SearchField extends StatelessWidget {
         fontFamily: 'Inter',
         fontSize: 16,
         color: Color(0xFF1A1C1C),
+      ),
+    );
+  }
+}
+
+// Search results (absent students only) ----------------------------------------
+
+class _SearchResultsList extends StatelessWidget {
+  final List<StudentEntry> results;
+  final ValueChanged<StudentEntry> onSelect;
+  const _SearchResultsList({required this.results, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFBEC9C3)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: results
+            .map((s) => InkWell(
+                  onTap: () => onSelect(s),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.name,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1A1C1C),
+                                ),
+                              ),
+                              Text(
+                                s.studentId,
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12,
+                                  color: Color(0xFF3F4944),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: Color(0xFF6F7A74)),
+                      ],
+                    ),
+                  ),
+                ))
+            .toList(),
       ),
     );
   }

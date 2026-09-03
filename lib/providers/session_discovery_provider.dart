@@ -163,6 +163,7 @@ Stream<List<DetectedSession>> _discoveredSessionsStream() {
               lecturerIP: sessionData['lecturerIP'] as String,
               lecturerPort: sessionData['lecturerPort'] as int,
               isLateFromBroadcast: sessionData['isLate'] as bool? ?? false,
+              bleAvailable: sessionData['bleAvailable'] as bool? ?? false,
             );
 
             // ── Update sessions map & emit ──────────────────────────────

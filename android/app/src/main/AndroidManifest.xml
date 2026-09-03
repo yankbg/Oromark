@@ -6,6 +6,20 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
+    <!-- BLE proximity gate (see lib/data/services/ble_service.dart).
+         "neverForLocation" on SCAN is honest — this app only matches a
+         token, it never derives physical coordinates from BLE — so on
+         API 31+ no location permission/prompt is needed at all. Pre-31
+         devices still require ACCESS_FINE_LOCATION per the OS's BLE scan
+         API, no way around that. -->
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30"/>
+
     <application
         android:label="oromark"
         android:name="${applicationName}"
