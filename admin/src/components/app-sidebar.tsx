@@ -8,6 +8,7 @@ import {
   AcademicCapIcon,
   UserGroupIcon,
   BookOpenIcon,
+  ClipboardDocumentListIcon,
   ArrowRightStartOnRectangleIcon,
 } from "@heroicons/react/24/outline";
 import {
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/students", label: "Students", icon: AcademicCapIcon },
   { href: "/lecturers", label: "Lecturers", icon: UserGroupIcon },
   { href: "/courses", label: "Courses", icon: BookOpenIcon },
+  { href: "/sessions", label: "Sessions", icon: ClipboardDocumentListIcon },
 ];
 
 export function AppSidebar() {
