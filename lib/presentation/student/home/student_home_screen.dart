@@ -1,1 +1,0 @@
-//the main screen students see when they open the app

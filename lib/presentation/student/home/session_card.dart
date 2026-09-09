@@ -1,1 +1,0 @@
-//The card widget that appears when a session is detected
