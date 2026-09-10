@@ -9,8 +9,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/app_database_provider.dart';
 import 'session_controller.dart';
+import 'session_summary_pdf.dart';
 import 'session_summary_stats.dart';
 
 class SessionSummaryScreen extends ConsumerStatefulWidget {
@@ -139,27 +142,80 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen> {
   }
 
   void _handlePrint(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Print Report functionality coming soon'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    _withReportPdf(context, (bytes, filename) {
+      return Printing.layoutPdf(onLayout: (_) => bytes, name: filename);
+    });
   }
 
   void _handleExportPDF(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    _withReportPdf(context, (bytes, filename) {
+      return Printing.sharePdf(bytes: bytes, filename: filename);
+    });
+  }
+
+  /// Builds the summary PDF once and hands the bytes to [action] (print
+  /// sheet or share sheet). Shows a progress snackbar while generating and
+  /// an error snackbar if anything fails.
+  Future<void> _withReportPdf(
+    BuildContext context,
+    Future<void> Function(Uint8List bytes, String filename) action,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
       SnackBar(
-        content: const Text('Exporting PDF...'),
+        content: const Text('Preparing report...'),
         backgroundColor: AppColors.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
       ),
     );
+
+    try {
+      final roster = await _buildRoster();
+      final bytes = await buildSessionSummaryPdf(state, roster);
+      if (!mounted) return;
+
+      final dateTag =
+          '${state.endedAt.year}-${state.endedAt.month.toString().padLeft(2, '0')}-${state.endedAt.day.toString().padLeft(2, '0')}';
+      await action(bytes, 'Attendance_${state.courseCode}_$dateTag.pdf');
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Could not generate the report: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
+  /// Rebuilds the full roster (every enrolled student + their final status)
+  /// from the local database, mirroring SessionController._rebuildStudentList
+  /// so manual ABSENT overrides written on this screen are reflected.
+  Future<List<StudentEntry>> _buildRoster() async {
+    final db = ref.read(appDatabaseProvider);
+    final enrolled = await db.getEnrolledStudents(state.courseCode);
+    final records = await db.getSessionAttendance(state.sessionId);
+    final byId = {for (final r in records) r.studentId: r};
+
+    return enrolled.map((s) {
+      final rec = byId[s.studentId];
+      return StudentEntry(
+        name: s.fullName,
+        studentId: s.studentId,
+        checkInTime: rec == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(rec.timestamp),
+        status: switch (rec?.status) {
+          'PRESENT' => CheckInStatus.present,
+          'LATE' => CheckInStatus.late,
+          _ => CheckInStatus.notCheckedIn,
+        },
+      );
+    }).toList();
   }
 
   void _handleExportCSV(BuildContext context) {

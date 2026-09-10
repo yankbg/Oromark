@@ -82,6 +82,8 @@ dependencies:
   flutter_dotenv: ^5.2.1
   flutter_ble_peripheral: ^3.0.0
   flutter_blue_plus: ^2.3.12
+  pdf: ^3.13.0
+  printing: ^5.15.0
 
 dev_dependencies:
   flutter_test:
