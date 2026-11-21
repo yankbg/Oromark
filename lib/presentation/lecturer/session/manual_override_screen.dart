@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../providers/app_database_provider.dart';
+import '../../../providers/auth_state_provider.dart';
 import 'session_controller.dart';
 
 class ManualOverrideScreen extends ConsumerStatefulWidget {
@@ -102,7 +104,7 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
     ));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9), // background
+      backgroundColor: AppColors.bgSecondary,
       appBar: _ManualOverrideAppBar(),
       body: Stack(
         children: [
@@ -131,14 +133,14 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
                   const SizedBox(height: 24),
 
                   // Status options
-                  Text(
+                  const Text(
                     'SET ATTENDANCE STATUS',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.8,
-                      color: Color(0xFF3F4944), // on-surface-variant
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -151,7 +153,9 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
                   const SizedBox(height: 24),
 
                   // Audit warning
-                  const _AuditWarningCard(),
+                  _AuditWarningCard(
+                    lecturerName: ref.watch(authStateNotifierProvider).value?.fullname,
+                  ),
                 ],
               ),
             ),
@@ -185,11 +189,11 @@ class _ManualOverrideAppBar extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: const Color(0xFFF9F9F9), // surface
+      backgroundColor: AppColors.bgPrimary,
       elevation: 1,
       centerTitle: false,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF005440)),
+        icon: const Icon(Icons.arrow_back_rounded, color: AppColors.primary),
         onPressed: () => Navigator.of(context).pop(),
       ),
       title: const Text(
@@ -198,22 +202,9 @@ class _ManualOverrideAppBar extends StatelessWidget
           fontFamily: 'Inter',
           fontSize: 22,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF005440), // primary
+          color: AppColors.primary,
         ),
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: Row(
-            children: const [
-              // logo placeholder
-              Icon(Icons.school, color: Color(0xFF005440)),
-              SizedBox(width: 8),
-              Icon(Icons.warning_amber_rounded, color: Color(0xFFBA1A1A)),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -230,8 +221,7 @@ class _SearchField extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         hintText: 'Search student by name or ID',
-        prefixIcon: const Icon(Icons.search_rounded,
-            color: Color(0xFF6F7A74)), // outline
+        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiary),
         filled: true,
         fillColor: Colors.white,
         contentPadding:
@@ -242,13 +232,13 @@ class _SearchField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF005440), width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
       ),
       style: const TextStyle(
         fontFamily: 'Inter',
         fontSize: 16,
-        color: Color(0xFF1A1C1C),
+        color: AppColors.textPrimary,
       ),
     );
   }
@@ -290,7 +280,7 @@ class _SearchResultsList extends StatelessWidget {
                                   fontFamily: 'Inter',
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1A1C1C),
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               Text(
@@ -298,14 +288,14 @@ class _SearchResultsList extends StatelessWidget {
                                 style: const TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 12,
-                                  color: Color(0xFF3F4944),
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
                           ),
                         ),
                         const Icon(Icons.chevron_right_rounded,
-                            color: Color(0xFF6F7A74)),
+                            color: AppColors.textTertiary),
                       ],
                     ),
                   ),
@@ -321,6 +311,14 @@ class _SearchResultsList extends StatelessWidget {
 class _SelectedStudentCard extends StatelessWidget {
   final StudentEntry student;
   const _SelectedStudentCard({required this.student});
+
+  static String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return parts.isNotEmpty && parts.first.isNotEmpty ? parts.first[0].toUpperCase() : '?';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -343,21 +341,25 @@ class _SelectedStudentCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // avatar
+          // StudentEntry carries no photo — initials circle, same
+          // treatment as StudentAvatar/LecturerProfileScreen elsewhere.
           Container(
             width: 64,
             height: 64,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF0F6E56), // primary-container
-                width: 2,
-              ),
+              color: AppColors.primary.withOpacity(0.10),
+              border: Border.all(color: AppColors.primary, width: 2),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.network(
-              'https://lh3.googleusercontent.com/aida-public/AB6AXuBPQctMCm5Idb1uMQ4GfLCjug3l6rQXbkd0vBrucqZZmM81TJNB-yHnv71QcYu_Of1ZyDv3mKQoISIerH25zw2jSqBqRb6nidw1F90xziAxmn5eXKInaXHv6hyFfG6H_NW7mBhV7FHhixThxtGaU5ebaSp8HA8ZecZRjzMei6RX4OugO838MGp5Gw1zWkZINwKasThikFUBC4ZEh8UOhWSyuUabms_1lUW9zqpTIhHxaEvG0940uK8u3Zi-9gF-lfKpur6lyt4rLvM',
-              fit: BoxFit.cover,
+            child: Center(
+              child: Text(
+                _initials(student.name),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -371,7 +373,7 @@ class _SelectedStudentCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1C1C),
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -380,7 +382,7 @@ class _SelectedStudentCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF3F4944),
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -391,14 +393,14 @@ class _SelectedStudentCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFDAD6), // error-container
+              color: AppColors.absentBg,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: const [
                 Icon(Icons.error_rounded,
-                    size: 16, color: Color(0xFF93000A)),
+                    size: 16, color: AppColors.absentText),
                 SizedBox(width: 4),
                 Text(
                   'ABSENT',
@@ -406,7 +408,7 @@ class _SelectedStudentCard extends StatelessWidget {
                     fontFamily: 'Inter',
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF93000A),
+                    color: AppColors.absentText,
                   ),
                 ),
               ],
@@ -444,7 +446,7 @@ class _StatusGrid extends StatelessWidget {
         _StatusCard(
           label: 'PRESENT',
           icon: Icons.check_circle_rounded,
-          color: const Color(0xFF005440), // primary
+          color: AppColors.presentText,
           groupValue: value,
           value: 'present',
           onChanged: onChanged,
@@ -452,7 +454,7 @@ class _StatusGrid extends StatelessWidget {
         _StatusCard(
           label: 'LATE',
           icon: Icons.schedule_rounded,
-          color: const Color(0xFF885200), // secondary
+          color: AppColors.lateText,
           groupValue: value,
           value: 'late',
           onChanged: onChanged,
@@ -460,7 +462,7 @@ class _StatusGrid extends StatelessWidget {
         _StatusCard(
           label: 'ABSENT',
           icon: Icons.cancel_rounded,
-          color: const Color(0xFFBA1A1A), // error
+          color: AppColors.absentText,
           groupValue: value,
           value: 'absent',
           onChanged: onChanged,
@@ -514,7 +516,7 @@ class _StatusCard extends StatelessWidget {
                     icon,
                     size: 24,
                     color:
-                    isActive ? color : const Color(0xFF3F4944),
+                    isActive ? color : AppColors.textSecondary,
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -524,7 +526,7 @@ class _StatusCard extends StatelessWidget {
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color:
-                      isActive ? color : const Color(0xFF3F4944),
+                      isActive ? color : AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -560,43 +562,46 @@ class _StatusCard extends StatelessWidget {
 // Audit warning ---------------------------------------------------------------
 
 class _AuditWarningCard extends StatelessWidget {
-  const _AuditWarningCard();
+  final String? lecturerName;
+  const _AuditWarningCard({this.lecturerName});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFDCBB).withOpacity(0.2),
+        color: AppColors.lateBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDAD4E).withOpacity(0.3)),
+        border: Border.all(color: AppColors.warning.withOpacity(0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Icon(Icons.history_edu_rounded,
-              size: 24, color: Color(0xFF704200)),
-          SizedBox(width: 12),
+        children: [
+          const Icon(Icons.history_edu_rounded,
+              size: 24, color: AppColors.lateText),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'This action will be logged in the audit trail.',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF704200),
+                    color: AppColors.lateText,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Timestamp and your name (Dr. Sarah Jenkins) will be recorded.',
-                  style: TextStyle(
+                  lecturerName != null
+                      ? 'Timestamp and your name ($lecturerName) will be recorded.'
+                      : 'Timestamp and your name will be recorded.',
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 12,
-                    color: Color(0xFF704200),
+                    color: AppColors.lateText,
                   ),
                 ),
               ],
@@ -626,7 +631,7 @@ class _BottomActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFEEEEEE),
+      color: AppColors.bgTertiary,
       padding: EdgeInsets.fromLTRB(
         16,
         8,
@@ -639,8 +644,8 @@ class _BottomActions extends StatelessWidget {
             child: OutlinedButton(
               onPressed: isLoading ? null : onCancel,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF1A1C1C),
-                side: const BorderSide(color: Color(0xFF6F7A74)),
+                foregroundColor: AppColors.textPrimary,
+                side: const BorderSide(color: Color(0xFFBEC9C3)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(999),
                 ),
@@ -662,7 +667,7 @@ class _BottomActions extends StatelessWidget {
             child: ElevatedButton(
               onPressed: isLoading ? null : onConfirm,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF005440),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(999),
