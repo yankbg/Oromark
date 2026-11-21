@@ -59,10 +59,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             )
                 : RefreshIndicator(
               color: AppColors.primary,
-              onRefresh: () async {
-                // TODO: re-fetch from drift / Supabase
-                await Future.delayed(const Duration(milliseconds: 600));
-              },
+              onRefresh: _ctrl.refresh,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                 children: [
@@ -75,6 +72,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     active: _ctrl.activeFilter,
                     onSelect: _ctrl.setFilter,
                   ),
+                  const SizedBox(height: 20),
+
+                  // ── Attendance overview chart ──────────
+                  _AttendanceChartCard(records: _ctrl.all),
                   const SizedBox(height: 20),
 
                   // ── Summary bento card ─────────────────
@@ -476,6 +477,182 @@ class _StatPill extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Attendance overview chart — one column per session, oldest → newest.
+// Height encodes attendance credit (present=full, late=half, absent=none —
+// same weighting as HistoryController.attendanceRate), color encodes status.
+// Height is a second, non-color cue on top of the status color so present
+// and late (closest hues in the app's status palette) stay tellable apart
+// even under color-vision deficiency.
+// ─────────────────────────────────────────────────────────────────────────────
+class _AttendanceChartCard extends StatelessWidget {
+  final List<HistoryRecord> records;
+  const _AttendanceChartCard({required this.records});
+
+  static const _maxBars = 20;
+  static const _monthAbbr = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _formatDate(DateTime d) => '${d.day} ${_monthAbbr[d.month - 1]}';
+
+  @override
+  Widget build(BuildContext context) {
+    if (records.isEmpty) return const SizedBox.shrink();
+
+    // records is most-recent-first; the chart reads left→right as oldest→
+    // newest, so reverse it, then keep only the most recent _maxBars.
+    final chronological = records.reversed.toList();
+    final windowed = chronological.length > _maxBars
+        ? chronological.sublist(chronological.length - _maxBars)
+        : chronological;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8E4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ATTENDANCE OVERVIEW',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Last ${windowed.length} session${windowed.length == 1 ? '' : 's'}',
+            style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+          ),
+          const SizedBox(height: 18),
+
+          SizedBox(
+            height: 110,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final r in windowed)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                      child: _AttendanceBar(status: r.status),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(height: 1, color: const Color(0xFFE2E8E4)),
+          const SizedBox(height: 8),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDate(windowed.first.sessionDate),
+                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              ),
+              Text(
+                _formatDate(windowed.last.sessionDate),
+                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          const Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              _LegendDot(color: AppColors.presentText, label: 'Present'),
+              _LegendDot(color: AppColors.lateText, label: 'Late'),
+              _LegendDot(color: AppColors.absentText, label: 'Absent'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttendanceBar extends StatelessWidget {
+  final AttendanceStatus status;
+  const _AttendanceBar({required this.status});
+
+  // Present = full credit, Late = half credit, Absent = none — mirrors
+  // HistoryController.attendanceRate's weighting, so the bar height means
+  // the same thing the percentage above already does.
+  double get _heightFactor => switch (status) {
+    AttendanceStatus.present => 1.0,
+    AttendanceStatus.late    => 0.55,
+    AttendanceStatus.absent  => 0.22,
+  };
+
+  Color get _color => switch (status) {
+    AttendanceStatus.present => AppColors.presentText,
+    AttendanceStatus.late    => AppColors.lateText,
+    AttendanceStatus.absent  => AppColors.absentText,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      alignment: Alignment.bottomCenter,
+      heightFactor: _heightFactor,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _color,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+        ),
+      ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }

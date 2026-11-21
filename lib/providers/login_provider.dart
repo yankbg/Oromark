@@ -43,6 +43,12 @@ class LoginController extends _$LoginController {
           // Neon now, so anything created via the admin dashboard shows up
           // immediately instead of requiring a manual pull-to-refresh.
           await SyncService(db).pullLecturerData(result.userId);
+        } else {
+          // Student login: pull this student's full attendance history
+          // (including sessions they were marked ABSENT for on a
+          // lecturer's device) — see pullStudentData's docstring for why
+          // this device otherwise never learns about sessions it missed.
+          await SyncService(db).pullStudentData(result.userId);
         }
         return result;
 
@@ -117,15 +123,15 @@ class LoginController extends _$LoginController {
         password: plaintextPassword,
       ));
     } else {
-      // The server profile doesn't return a phone number, so preserve
-      // whatever this device already has cached for this student instead
-      // of overwriting it with an empty string on every login.
+      // Prefer the phone number Neon just sent back; fall back to whatever
+      // this device already has cached so an older server response (or a
+      // student with no phone on file) doesn't blank out a known value.
       final existing = await db.getStudentProfile(result.userId);
       await db.upsertStudentProfile(StudentsCompanion.insert(
         studentId: result.userId,
         studentName: result.fullname,
         studentEmail: result.email,
-        phoneNumber: existing?.phoneNumber ?? '',
+        phoneNumber: result.phone ?? existing?.phoneNumber ?? '',
         programme: result.program ?? '',
         yearOfStudy: result.yearOfStudy ?? '',
         password: plaintextPassword,
@@ -176,6 +182,7 @@ class LoginController extends _$LoginController {
                 email: profile['studentEmail'] as String,
                 program: profile['programme'] as String?,
                 yearOfStudy: profile['yearOfStudy'] as String?,
+                phone: profile['phoneNumber'] as String?,
                 token: token,
               );
         return _NetworkLoginAttempt(_NetworkOutcome.success, result: result);

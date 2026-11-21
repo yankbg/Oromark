@@ -371,6 +371,33 @@ class AppDatabase extends _$AppDatabase {
       ..orderBy([(r) => OrderingTerm.desc(r.timestamp)]))
         .get();
   }
+  /// Merges attendance history pulled from Neon (see SyncService.
+  /// pullStudentData) into this student's own local history. A pulled row
+  /// for a session this device already has a record for (its own present/
+  /// late submission) is skipped — it's already correct and already
+  /// synced — so this only ever fills in sessions the device has no idea
+  /// happened at all, e.g. ones it was marked ABSENT for. There's no
+  /// unique constraint on (sessionId, studentId) to upsert against here
+  /// (unlike the Neon side), so the existence check is done in Dart
+  /// against one batch read instead of a query per record.
+  Future<void> mergeStudentAttendanceFromCloud(
+    String studentId,
+    List<AttendanceRecordsCompanion> pulled,
+  ) async {
+    final existing = await getStudentHistory(studentId);
+    final knownSessionIds = existing.map((r) => r.sessionId).toSet();
+
+    for (final entry in pulled) {
+      final sessionId = entry.sessionId.value;
+      if (knownSessionIds.contains(sessionId)) continue;
+      // Already confirmed present in Neon — came from there.
+      await into(attendanceRecords).insert(
+        entry.copyWith(synced: const Value(true)),
+      );
+      knownSessionIds.add(sessionId);
+    }
+  }
+
   Future<void> markSynced(List<int> ids) async {
     await (update(attendanceRecords)
       ..where((a) => a.id.isIn(ids)))

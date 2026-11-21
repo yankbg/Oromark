@@ -7,6 +7,7 @@ class AuthResult {
   final String? program;
   final String? yearOfStudy;
   final String? department;
+  final String? phone;
 
   /// Opaque session token from the sync server's POST /auth/login, when the
   /// login went over the network. Null when this AuthResult came from a
@@ -23,7 +24,8 @@ class AuthResult {
     required this.department,
     this.token,
   }): program     = null,
-      yearOfStudy = null;
+      yearOfStudy = null,
+      phone       = null;
 
   AuthResult.student({
     required this.fullname,
@@ -31,6 +33,7 @@ class AuthResult {
     required this.email,
     required this.program,
     required this.yearOfStudy,
+    this.phone,
     this.token,
   }): department = null;
 

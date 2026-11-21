@@ -129,6 +129,78 @@ class SyncService {
     }
   }
 
+  /// Pulls this student's full attendance history from Neon — present,
+  /// late, *and* absent — and merges in anything this device doesn't
+  /// already have a local row for. The other half of the pull direction
+  /// alongside [pullLecturerData]: a student's device only ever learns
+  /// about a session by taking part in its local UDP/HTTP broadcast, so a
+  /// session it was marked absent for (computed on the *lecturer's* device
+  /// when they end the session) never reaches it any other way. Without
+  /// this, the student's own Attendance History / rate only ever reflects
+  /// sessions it attended, never ones it missed. Called once right after
+  /// a successful network login, same as pullLecturerData. Best-effort: on
+  /// any failure, whatever's already cached locally is left untouched.
+  Future<void> pullStudentData(String studentId) async {
+    final apiUrl = dotenv.env['SYNC_API_URL'];
+    final apiKey = dotenv.env['SYNC_API_KEY'];
+    if (apiUrl == null || apiUrl.isEmpty || apiKey == null || apiKey.isEmpty) {
+      return;
+    }
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$apiUrl/student/history').replace(
+              queryParameters: {'id': studentId},
+            ),
+            headers: {'X-Api-Key': apiKey},
+          )
+          .timeout(const Duration(seconds: 20));
+
+      if (response.statusCode != 200) {
+        print('[SyncService] Student-history pull failed: ${response.statusCode} ${response.body}');
+        return;
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final records = (body['records'] as List).cast<Map<String, dynamic>>();
+      if (records.isEmpty) return;
+
+      // Cache each referenced session's metadata locally first — the
+      // attendance merge below checks sessionId against what's already on
+      // this device, and the history screen's course name/date lookup
+      // needs the session row to exist either way.
+      for (final r in records) {
+        await _db.upsertSessionMeta(SessionsCompanion.insert(
+          sessionId: r['sessionId'] as String,
+          courseCode: r['courseCode'] as String,
+          courseName: r['courseName'] as String,
+          lecturerName: Value(r['lecturerName'] as String?),
+          roomCode: r['roomCode'] as String,
+          startTime: r['startTime'] as int,
+          endTime: r['endTime'] as int,
+          presentCutoff: r['presentCutoff'] as String,
+          lateCutoff: r['lateCutoff'] as String,
+          status: r['sessionStatus'] as String,
+          createdAt: r['createdAt'] as int,
+          synced: const Value(true),
+        ));
+      }
+
+      final pulled = records
+          .map((r) => AttendanceRecordsCompanion.insert(
+                sessionId: r['sessionId'] as String,
+                studentId: r['studentId'] as String,
+                status: r['status'] as String,
+                timestamp: r['timestamp'] as int,
+              ))
+          .toList();
+      await _db.mergeStudentAttendanceFromCloud(studentId, pulled);
+    } catch (e) {
+      print('[SyncService] Student-history pull skipped: $e');
+    }
+  }
+
   /// Pushes everything unsynced to the server. Safe to call anytime —
   /// silently does nothing if the server isn't configured or unreachable.
   Future<void> syncNow() async {

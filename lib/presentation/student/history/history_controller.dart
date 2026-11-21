@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/database/app_database.dart';
+import '../../../data/services/sync_service.dart';
 import '../../../providers/auth_state_provider.dart';
 
 // ── Status enum ───────────────────────────────────────────────────────────────
@@ -57,6 +58,10 @@ class HistoryController extends ChangeNotifier {
   List<HistoryRecord> _all = [];
 
   // ── Derived ─────────────────────────────────────────────────────────────────
+  // Full history, unaffected by the filter chips — used by the overview
+  // chart, which should always show the whole picture, not just one status.
+  List<HistoryRecord> get all => _all;
+
   List<HistoryRecord> get filtered => activeFilter == HistoryFilter.all
       ? _all
       : _all
@@ -92,6 +97,20 @@ class HistoryController extends ChangeNotifier {
   void setFilter(HistoryFilter f) {
     activeFilter = f;
     notifyListeners();
+  }
+
+  /// Pull-to-refresh: re-pulls this student's attendance history from Neon
+  /// (picking up anything a lecturer ended since the last pull — sessions
+  /// this device was marked ABSENT for included, see
+  /// SyncService.pullStudentData), then reloads from local SQLite. A no-op,
+  /// silently, if there's no internet — _load() still reruns, so the
+  /// screen reflects whatever's already cached locally either way.
+  Future<void> refresh() async {
+    final authResult = _ref.read(authStateNotifierProvider).value;
+    if (authResult != null) {
+      await SyncService(_db).pullStudentData(authResult.userId);
+    }
+    await _load();
   }
 
   // ── [MOCK] data load ─────────────────────────────────────────────────────────

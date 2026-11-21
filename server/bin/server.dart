@@ -52,7 +52,8 @@ Future<void> main() async {
     ..post('/sync', _handleSync(pool))
     ..post('/auth/login', _rateLimited(_handleLogin(pool)))
     ..post('/auth/bootstrap-password', _handleBootstrapPassword(pool))
-    ..get('/lecturer/courses', _lecturerCourses(pool));
+    ..get('/lecturer/courses', _lecturerCourses(pool))
+    ..get('/student/history', _studentHistory(pool));
 
   final handler = Pipeline()
       .addMiddleware(logRequests())
@@ -434,6 +435,65 @@ Handler _lecturerCourses(Session db) {
       }));
     } catch (e, st) {
       stderr.writeln('Lecturer-courses error: $e\n$st');
+      return Response.internalServerError(body: jsonEncode({'error': '$e'}));
+    }
+  };
+}
+
+// GET /student/history?id=<studentId>
+//
+// The other pull direction, mirroring /lecturer/courses: a student's own
+// device only ever learns a session happened by taking part in its local
+// UDP/HTTP broadcast, so a session it was marked ABSENT for (computed by
+// _computeAbsent() on the *lecturer's* device — see session_notifier.dart)
+// never reaches the absent student's own phone on its own. This returns
+// every attendance_records row for this student — present, late, and
+// absent alike — each joined to its session's metadata, so the student's
+// own Attendance History screen can learn about (and count) sessions it
+// has no local row for at all, not just the ones it attended.
+Handler _studentHistory(Session db) {
+  return (Request request) async {
+    final id = request.url.queryParameters['id'];
+    if (id == null || id.isEmpty) {
+      return Response(400, body: jsonEncode({'error': 'id query parameter is required'}));
+    }
+    try {
+      final rows = await db.execute(
+        Sql.named('''
+          select ar.session_id, ar.student_id, ar.status, ar.timestamp,
+                 s.course_code, s.course_name, s.lecturer_name, s.room_code,
+                 s.start_time, s.end_time, s.present_cutoff, s.late_cutoff,
+                 s.status, s.created_at
+          from attendance_records ar
+          join sessions s on s.session_id = ar.session_id
+          where ar.student_id = @id
+          order by ar.timestamp desc
+        '''),
+        parameters: {'id': id},
+      );
+
+      final records = rows
+          .map((r) => {
+                'sessionId':    r[0],
+                'studentId':    r[1],
+                'status':       r[2],
+                'timestamp':    (r[3] as DateTime).millisecondsSinceEpoch,
+                'courseCode':   r[4],
+                'courseName':   r[5],
+                'lecturerName': r[6],
+                'roomCode':     r[7],
+                'startTime':    (r[8] as DateTime).millisecondsSinceEpoch,
+                'endTime':      (r[9] as DateTime).millisecondsSinceEpoch,
+                'presentCutoff': r[10],
+                'lateCutoff':    r[11],
+                'sessionStatus': r[12],
+                'createdAt':     (r[13] as DateTime).millisecondsSinceEpoch,
+              })
+          .toList();
+
+      return Response.ok(jsonEncode({'ok': true, 'records': records}));
+    } catch (e, st) {
+      stderr.writeln('Student-history error: $e\n$st');
       return Response.internalServerError(body: jsonEncode({'error': '$e'}));
     }
   };
