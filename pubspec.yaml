@@ -118,6 +118,7 @@ flutter:
   assets:
     - assets/oromark.jpg
     - assets/icon/logo_mark_white.png
+    - assets/icon/logo_mark_primary.png
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see

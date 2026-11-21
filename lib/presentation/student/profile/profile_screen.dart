@@ -222,7 +222,7 @@ class _TopBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Image.asset('assets/oromark.jpg', height: 26, fit: BoxFit.contain),
+            Image.asset('assets/icon/logo_mark_primary.png', height: 26, fit: BoxFit.contain),
             const SizedBox(width: 8),
             const Text(
               'OROmark',

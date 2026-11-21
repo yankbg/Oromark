@@ -65,13 +65,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 children: [
                   const SizedBox(height: 20),
 
-                  // ── Title + filter chips ───────────────
+                  // ── Title ───────────────────────────────
                   _SectionTitle(),
-                  const SizedBox(height: 14),
-                  _FilterChips(
-                    active: _ctrl.activeFilter,
-                    onSelect: _ctrl.setFilter,
-                  ),
                   const SizedBox(height: 20),
 
                   // ── Attendance overview chart ──────────
@@ -82,48 +77,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   _SummaryCard(controller: _ctrl),
                   const SizedBox(height: 24),
 
-                  // ── Recent logs header ─────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Recent Logs',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      // Export button
-                      GestureDetector(
-                        onTap: () {
-                          // TODO: export CSV / PDF
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Export coming soon'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        child: const Row(
-                          children: [
-                            Icon(Icons.file_download_outlined,
-                                size: 16, color: AppColors.primary),
-                            SizedBox(width: 4),
-                            Text(
-                              'Export',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  // ── Recent logs header + filter chips ──
+                  const Text(
+                    'Recent Logs',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 12),
+                  _FilterChips(
+                    active: _ctrl.activeFilter,
+                    onSelect: _ctrl.setFilter,
+                  ),
+                  const SizedBox(height: 12),
 
                   // ── Log list ───────────────────────────
                   if (_ctrl.filtered.isEmpty)
@@ -208,7 +176,7 @@ class _TopBar extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Image.asset('assets/oromark.jpg', height: 26, fit: BoxFit.contain),
+              Image.asset('assets/icon/logo_mark_primary.png', height: 26, fit: BoxFit.contain),
               const SizedBox(width: 8),
               const Text(
                 'OROmark',
@@ -358,7 +326,8 @@ class _SummaryCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Padding(
+                        Flexible(
+                          child: Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -369,6 +338,8 @@ class _SummaryCard extends StatelessWidget {
                             ),
                             child: Text(
                               c.standingLabel,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -376,6 +347,7 @@ class _SummaryCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                        ),
                         ),
                       ],
                     ),
