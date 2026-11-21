@@ -61,14 +61,17 @@ class SessionSummaryHeader extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // Meta: Duration + Closed time
-        Row(
+        // Meta: Duration + Closed time — Wrap, not Row, so a long
+        // duration (an all-day session can read "240 minutes") drops to
+        // a second line instead of overflowing the first.
+        Wrap(
+          spacing: 20,
+          runSpacing: 6,
           children: [
             _MetaItem(
               icon:  Icons.schedule_rounded,
               label: 'Duration: ${state.durationMinutes} minutes',
             ),
-            const SizedBox(width: 20),
             _MetaItem(
               icon:  Icons.timer_off_rounded,
               label: 'Closed at: $h:$m $ampm',
