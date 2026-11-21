@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -79,8 +78,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _runSequence() async {
-    FlutterNativeSplash.remove();
-
     await Future.delayed(const Duration(milliseconds: 250));
     await _logoController.forward();
     await Future.delayed(const Duration(milliseconds: 80));

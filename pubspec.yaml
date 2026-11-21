@@ -73,7 +73,6 @@ dependencies:
 
   # Foreground Service (Android)
   flutter_foreground_task: ^6.0.0
-  flutter_native_splash: ^2.4.0
 
   network_info_plus: ^7.0.0
 
@@ -118,6 +117,7 @@ flutter:
 
   assets:
     - assets/oromark.jpg
+    - assets/icon/logo_mark_white.png
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -154,22 +154,3 @@ flutter:
           weight: 600
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-flutter_native_splash:
-  # White background — matches your logo
-  color: "#FFFFFF"
-
-  # Your logo image
-  image: assets/oromark.jpg
-
-  # Make the logo a reasonable size on screen
-  android_12:
-    image: assets/oromark.jpg
-    color: "#FFFFFF"
-    icon_background_color: "#FFFFFF"
-
-  # Fill the whole screen or just center the icon
-  fullscreen: false
-
-  # Android specific
-  android: true
-  ios: false

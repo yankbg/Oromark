@@ -4,7 +4,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
@@ -17,11 +16,6 @@ import 'presentation/student/home/student_home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  //This must be first
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-
-  //Keep native splash visible until we say so
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   // Cloud name + upload preset for profile picture uploads — not secrets,
   // safe to bundle (unsigned upload preset, no API secret used).
