@@ -149,13 +149,20 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return  Container(
+    // Shrink the header while the keyboard is up so the form has more
+    // room to breathe instead of fighting the keyboard for space.
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+
+    return Container(
       color: AppColors.primary,
       child: SafeArea(
           bottom: false,
-          child: SizedBox(
-            height: 200,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve:    Curves.easeOutCubic,
+            height:   keyboardOpen ? 120 : 200,
             child: Stack(
+              clipBehavior: Clip.hardEdge,
               children: [
                 ..._buildRings(),
                 Positioned.fill(
@@ -165,11 +172,24 @@ class _Header extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment:  MainAxisAlignment.end,
                         children: [
-                          Image.asset(
-                            'assets/oromark.jpg',
-                            height: 60,
-                            fit:    BoxFit.contain,
-                            colorBlendMode: BlendMode.srcIn,
+                          Row(
+                            children: [
+                              Image.asset(
+                                'assets/icon/logo_mark_white.png',
+                                height: 32,
+                                fit:    BoxFit.contain,
+                              ),
+                              const SizedBox(width: 10),
+                              const Text(
+                                'Oromark',
+                                style: TextStyle(
+                                  fontSize:      22,
+                                  fontWeight:    FontWeight.w700,
+                                  color:         Colors.white,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -182,7 +202,11 @@ class _Header extends StatelessWidget {
                               letterSpacing: 0.3,
                             ),
                           ),
-                          const SizedBox(height: 32),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve:    Curves.easeOutCubic,
+                            height:   keyboardOpen ? 12 : 32,
+                          ),
                         ],
                       ),
                   ),
@@ -283,7 +307,7 @@ class _FormCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  _RoleCards(
+                  _RoleSwitch(
                     selected:  selectedRole,
                     onChanged: onRoleChanged,
                   ),
@@ -382,50 +406,52 @@ class _FormCard extends StatelessWidget {
     );
   }
 }
-//  Role cards
-class _RoleCards extends StatelessWidget {
+//  Role switch — compact segmented pill (replaces the old two-card layout)
+class _RoleSwitch extends StatelessWidget {
   final int           selected;
   final Function(int) onChanged;
-  const _RoleCards({required this.selected, required this.onChanged});
+  const _RoleSwitch({required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _RoleCard(
-            icon:        Icons.school_outlined,
-            label:       'Student',
-            description: 'Mark attendance in class',
-            isActive:    selected == 0,
-            onTap:       () => onChanged(0),
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color:        AppColors.bgTertiary,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _RoleSegment(
+              icon:     Icons.school_outlined,
+              label:    'Student',
+              isActive: selected == 0,
+              onTap:    () => onChanged(0),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _RoleCard(
-            icon:        Icons.co_present_outlined,
-            label:       'Lecturer',
-            description: 'Start and manage sessions',
-            isActive:    selected == 1,
-            onTap:       () => onChanged(1),
+          Expanded(
+            child: _RoleSegment(
+              icon:     Icons.co_present_outlined,
+              label:    'Lecturer',
+              isActive: selected == 1,
+              onTap:    () => onChanged(1),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _RoleCard extends StatelessWidget {
+class _RoleSegment extends StatelessWidget {
   final IconData     icon;
   final String       label;
-  final String       description;
   final bool         isActive;
   final VoidCallback onTap;
-  const _RoleCard({
+  const _RoleSegment({
     required this.icon,
     required this.label,
-    required this.description,
     required this.isActive,
     required this.onTap,
   });
@@ -433,65 +459,41 @@ class _RoleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap:     onTap,
+      behavior:  HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        curve:    Curves.easeInOut,
-        padding:  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        curve:    Curves.easeOut,
+        padding:  const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color:        isActive
-              ? AppColors.primary.withOpacity(0.06)
-              : AppColors.bgPrimary,
-          border: Border.all(
-            color: isActive
-                ? AppColors.primary
-                : const Color(0xFFBEC9C3),
-            width: isActive ? 2.0 : 1.5,
-          ),
+          color:        isActive ? AppColors.bgPrimary : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color:      Colors.black.withOpacity(0.06),
+                    blurRadius: 6,
+                    offset:     const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width:  36,
-              height: 36,
-              decoration: BoxDecoration(
-                color:        isActive
-                    ? AppColors.primary
-                    : AppColors.bgTertiary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size:  18,
-                color: isActive
-                    ? Colors.white
-                    : AppColors.textSecondary,
-              ),
+            Icon(
+              icon,
+              size:  16,
+              color: isActive ? AppColors.primary : AppColors.textSecondary,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontFamily:    'Inter',
-                fontSize:      13,
-                fontWeight:    FontWeight.w600,
-                color:         isActive
-                    ? AppColors.primary
-                    : AppColors.textPrimary,
-                letterSpacing: 0.1,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              description,
-              textAlign: TextAlign.center,
-              style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize:   10,
-                color:      AppColors.textSecondary,
-                height:     1.3,
+                fontSize:   13,
+                fontWeight: FontWeight.w600,
+                color:      isActive ? AppColors.primary : AppColors.textSecondary,
               ),
             ),
           ],
