@@ -10,6 +10,9 @@ import 'package:oromark/core/theme/app_colors.dart';
 import 'package:oromark/data/models/course_model.dart';
 import 'package:oromark/presentation/lecturer/session/select_course_screen.dart';
 import 'package:oromark/presentation/lecturer/session/start_session_sheet.dart';
+import 'package:oromark/providers/auth_state_provider.dart';
+import 'package:oromark/data/models/auth_result.dart';
+import 'package:oromark/presentation/lecturer/profile/profile_screen.dart';
 import 'course_list_screen.dart' show BottomNav; // import your lecturer bottom nav
 
 class CourseDetailScreen extends ConsumerStatefulWidget {
@@ -78,13 +81,23 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen> {
     );
   }
 }
-class _CourseDetailAppBar extends StatelessWidget
+class _CourseDetailAppBar extends ConsumerWidget
     implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(56);
 
+  String _getInitials(String fullname) {
+    final parts = fullname.split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+    }
+    return fullname.substring(0, 2).toUpperCase();
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateNotifierProvider);
+
     return AppBar(
       backgroundColor: AppColors.bgPrimary,
       elevation: 1,
@@ -101,14 +114,53 @@ class _CourseDetailAppBar extends StatelessWidget
           color: AppColors.primary,
         ),
       ),
-      actions: const [
+      actions: [
         Padding(
-          padding: EdgeInsets.only(right: 16),
-          child: CircleAvatar(
-            radius: 16,
-            backgroundColor: Colors.transparent,
-            backgroundImage: NetworkImage(
-              'https://lh3.googleusercontent.com/aida-public/AB6AXuD-UH5VKz-IQM0qTKqtqaB06du_EFxpxFZnKcZiXOFM3NihLrLudfnJDqAXqFPy0ebHlNRzdkerBm4QGXmp5bNvBFdig6saq1xxbVYi6qhXtWxAJ32Cj_y3BrZrRB3rFZkO3jEZatowR3EShmlcdKg8uZD7ZCt3RvYJVKLA1VfLQgTr71lAtR8BxnMi3oMiIikNyXW487gFnsWa3nrq8qikTM-tTEpjP143s_vMkGtqXDf_8u5m8AtrxfAXymONIuzCn91d28XxfEc',
+          padding: const EdgeInsets.only(right: 16),
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const LecturerProfileScreen(),
+              ),
+            ),
+            child: authState.when(
+              data: (authResult) {
+                if (authResult == null) {
+                  return CircleAvatar(
+                    radius: 18,
+                    backgroundColor: AppColors.primary.withOpacity(0.12),
+                    child: const Icon(Icons.person_rounded, size: 18),
+                  );
+                }
+                final initials = _getInitials(authResult.fullname);
+                return CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary.withOpacity(0.12),
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      fontFamily:  'Inter',
+                      fontSize:    12,
+                      fontWeight:  FontWeight.w700,
+                      color:       AppColors.primary,
+                    ),
+                  ),
+                );
+              },
+              loading: () => CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.primary.withOpacity(0.12),
+                child: const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+              ),
+              error: (e, st) => CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.error.withOpacity(0.12),
+                child: const Icon(Icons.error_rounded, size: 18),
+              ),
             ),
           ),
         ),

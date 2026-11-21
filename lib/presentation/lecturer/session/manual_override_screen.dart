@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/app_database_provider.dart';
 import '../../../providers/auth_state_provider.dart';
+import '../profile/profile_screen.dart';
 import 'session_controller.dart';
 
 class ManualOverrideScreen extends ConsumerStatefulWidget {
@@ -149,13 +150,6 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
                     value: _status,
                     onChanged: (v) => setState(() => _status = v),
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // Audit warning
-                  _AuditWarningCard(
-                    lecturerName: ref.watch(authStateNotifierProvider).value?.fullname,
-                  ),
                 ],
               ),
             ),
@@ -181,13 +175,23 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
 
 // AppBar ----------------------------------------------------------------------
 
-class _ManualOverrideAppBar extends StatelessWidget
+class _ManualOverrideAppBar extends ConsumerWidget
     implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(56);
 
+  String _getInitials(String fullname) {
+    final parts = fullname.split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+    }
+    return fullname.substring(0, 2).toUpperCase();
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateNotifierProvider);
+
     return AppBar(
       backgroundColor: AppColors.bgPrimary,
       elevation: 1,
@@ -205,6 +209,57 @@ class _ManualOverrideAppBar extends StatelessWidget
           color: AppColors.primary,
         ),
       ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const LecturerProfileScreen(),
+              ),
+            ),
+            child: authState.when(
+              data: (authResult) {
+                if (authResult == null) {
+                  return CircleAvatar(
+                    radius: 18,
+                    backgroundColor: AppColors.primary.withOpacity(0.12),
+                    child: const Icon(Icons.person_rounded, size: 18),
+                  );
+                }
+                final initials = _getInitials(authResult.fullname);
+                return CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary.withOpacity(0.12),
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      fontFamily:  'Inter',
+                      fontSize:    12,
+                      fontWeight:  FontWeight.w700,
+                      color:       AppColors.primary,
+                    ),
+                  ),
+                );
+              },
+              loading: () => CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.primary.withOpacity(0.12),
+                child: const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+              ),
+              error: (e, st) => CircleAvatar(
+                radius: 18,
+                backgroundColor: AppColors.error.withOpacity(0.12),
+                child: const Icon(Icons.error_rounded, size: 18),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -554,60 +609,6 @@ class _StatusCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// Audit warning ---------------------------------------------------------------
-
-class _AuditWarningCard extends StatelessWidget {
-  final String? lecturerName;
-  const _AuditWarningCard({this.lecturerName});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.lateBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.warning.withOpacity(0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.history_edu_rounded,
-              size: 24, color: AppColors.lateText),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'This action will be logged in the audit trail.',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.lateText,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  lecturerName != null
-                      ? 'Timestamp and your name ($lecturerName) will be recorded.'
-                      : 'Timestamp and your name will be recorded.',
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 12,
-                    color: AppColors.lateText,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

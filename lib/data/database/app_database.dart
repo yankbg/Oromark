@@ -574,21 +574,41 @@ class AppDatabase extends _$AppDatabase {
     required String status,
     required int submittedAt,
   }) async {
-    await into(attendanceRecords).insert(
-      AttendanceRecordsCompanion.insert(
-        sessionId: sessionId,
-        studentId: studentId,
-        status: status,
-        timestamp: submittedAt,
-      ),
-      onConflict: DoUpdate(
-            (old) => AttendanceRecordsCompanion(
-          status: Value(status),
-              timestamp: Value(submittedAt),
-              synced: const Value(false),
+    // AttendanceRecords has no unique index on (sessionId, studentId) —
+    // only the autoincrement id is a real constraint — so an untargeted
+    // onConflict here (the previous approach) can't detect a logical
+    // duplicate at all: it resolves against id, which is never supplied
+    // on insert, so it always just inserts a fresh row. In practice every
+    // ABSENT row _computeAbsent() writes when a session ends (see
+    // session_notifier.dart) already exists before a lecturer's manual
+    // override for that same student ever runs, so every override used
+    // to leave two rows (ABSENT + the overridden status) instead of
+    // replacing one. Existence check + explicit update instead, same
+    // pattern as mergeStudentAttendanceFromCloud. Querying the full list
+    // (not getAttendanceRecord's getSingleOrNull) so this doesn't itself
+    // throw on any duplicates the old behavior already created.
+    final existing = await (select(attendanceRecords)
+          ..where((tbl) =>
+              tbl.sessionId.equals(sessionId) & tbl.studentId.equals(studentId)))
+        .get();
+
+    if (existing.isEmpty) {
+      await into(attendanceRecords).insert(
+        AttendanceRecordsCompanion.insert(
+          sessionId: sessionId,
+          studentId: studentId,
+          status: status,
+          timestamp: submittedAt,
         ),
-      ),
-    );
+      );
+    } else {
+      await (update(attendanceRecords)..where((tbl) => tbl.id.equals(existing.first.id)))
+          .write(AttendanceRecordsCompanion(
+        status: Value(status),
+        timestamp: Value(submittedAt),
+        synced: const Value(false),
+      ));
+    }
   }
 
   /// Get attendance for a student in a session

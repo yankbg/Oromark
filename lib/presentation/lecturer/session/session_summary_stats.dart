@@ -12,13 +12,11 @@ import 'session_controller.dart';
 
 class SessionSummaryHeader extends StatelessWidget {
   final SessionSummaryState state;
-  final VoidCallback        onShare;
   final VoidCallback        onPrint;
 
   const SessionSummaryHeader({
     super.key,
     required this.state,
-    required this.onShare,
     required this.onPrint,
   });
 
@@ -80,23 +78,9 @@ class SessionSummaryHeader extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // Share + Print buttons
+        // Print button
         Row(
           children: [
-            OutlinedButton.icon(
-              onPressed: onShare,
-              icon:      const Icon(Icons.share_rounded, size: 18),
-              label:     const Text('Share'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
-                side: const BorderSide(color: Color(0xFFBEC9C3)),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            const SizedBox(width: 8),
             ElevatedButton.icon(
               onPressed: onPrint,
               icon:      const Icon(Icons.print_rounded, size: 18),

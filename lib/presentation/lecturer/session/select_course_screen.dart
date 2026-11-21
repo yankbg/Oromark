@@ -2,9 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/core/theme/app_colors.dart';
 import 'package:oromark/presentation/lecturer/courses/course_list_screen.dart'
     show BottomNav;
+import 'package:oromark/presentation/lecturer/profile/profile_screen.dart';
+import 'package:oromark/providers/auth_state_provider.dart';
 
 class SelectCourseScreen extends StatefulWidget {
   const SelectCourseScreen({super.key});
@@ -144,13 +147,23 @@ class _ModalOverlay extends StatelessWidget {
   }
 }
 
-// Top “NISAMS” bar (like header in HTML)
-class _ModalHeader extends StatelessWidget {
+// Top bar — logo + lecturer avatar, same treatment as the rest of the app
+class _ModalHeader extends ConsumerWidget {
   final TextEditingController searchController;
   const _ModalHeader({required this.searchController});
 
+  String _getInitials(String fullname) {
+    final parts = fullname.split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+    }
+    return fullname.substring(0, 2).toUpperCase();
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateNotifierProvider);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
       child: Column(
@@ -161,12 +174,12 @@ class _ModalHeader extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
-                children: const [
-                  Icon(Icons.signal_cellular_alt_rounded,
-                      color: AppColors.primary),
-                  SizedBox(width: 8),
-                  Text(
-                    'NISAMS',
+                children: [
+                  Image.asset('assets/icon/logo_mark_primary.png',
+                      height: 26, fit: BoxFit.contain),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'OROmark',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 22,
@@ -176,18 +189,50 @@ class _ModalHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.bgTertiary,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.primary, width: 2),
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LecturerProfileScreen(),
+                  ),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: Image.network(
-                  'https://lh3.googleusercontent.com/aida-public/AB6AXuA1YTtOYljSyUG91ZA3GZnk-b4-f4DOp8l_nJMuCZqLci3ZPsO_NKjMIAt0MQJTAkO5U-iI0X4LoWXGY7ftMdJTqBBfZy96iBRdDwJ_qF7iaZJ5ihUBnzoHIjcwH-lXzGwTQnl4DRSjO4i6IJ1lzqWF9vCTgawxLcAGtequX5S3LVPXnj5sv5jfovnDheQjoaGG_3cjl4sC-Ve5W_DtHecwQ6-8vrxd17VpexNLyd6ux7hNNFc5xODl-2vGctkCxl3ChL52j9ff0jo',
-                  fit: BoxFit.cover,
+                child: authState.when(
+                  data: (authResult) {
+                    if (authResult == null) {
+                      return CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppColors.primary.withOpacity(0.12),
+                        child: const Icon(Icons.person_rounded, size: 20),
+                      );
+                    }
+                    final initials = _getInitials(authResult.fullname);
+                    return CircleAvatar(
+                      radius: 20,
+                      backgroundColor: AppColors.primary.withOpacity(0.12),
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    );
+                  },
+                  loading: () => CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppColors.primary.withOpacity(0.12),
+                    child: const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ),
+                  error: (e, st) => CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppColors.error.withOpacity(0.12),
+                    child: const Icon(Icons.error_rounded, size: 18),
+                  ),
                 ),
               ),
             ],

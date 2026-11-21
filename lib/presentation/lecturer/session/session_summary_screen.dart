@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/app_database_provider.dart';
+import '../../../providers/auth_state_provider.dart';
+import '../../lecturer/profile/profile_screen.dart';
 import 'session_controller.dart';
 import 'session_summary_pdf.dart';
 import 'session_summary_stats.dart';
@@ -66,7 +68,6 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen> {
           // ── Header ───────────────────────────────────────────────
           SessionSummaryHeader(
             state:   state,
-            onShare: () => _handleShare(context),
             onPrint: () => _handlePrint(context),
           ),
           const SizedBox(height: 28),
@@ -128,18 +129,6 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen> {
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
-
-  void _handleShare(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Share functionality coming soon'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
 
   void _handlePrint(BuildContext context) {
     _withReportPdf(context, (bytes, filename) {
@@ -237,12 +226,21 @@ class _SessionSummaryScreenState extends ConsumerState<SessionSummaryScreen> {
 
 // ── Top app bar ───────────────────────────────────────────────────────────────
 
-class _AppBar extends StatelessWidget implements PreferredSizeWidget {
+class _AppBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(60);
 
+  String _getInitials(String fullname) {
+    final parts = fullname.split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+    }
+    return fullname.substring(0, 2).toUpperCase();
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateNotifierProvider);
     return Container(
       color: AppColors.bgPrimary,
       child: SafeArea(
@@ -275,23 +273,49 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
               const Spacer(),
-              Container(
-                width:  36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape:  BoxShape.circle,
-                  color:  AppColors.primary.withOpacity(0.10),
-                  border: Border.all(
-                      color: AppColors.primary, width: 1.5),
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LecturerProfileScreen(),
+                  ),
                 ),
-                child: const Center(
-                  child: Text(
-                    'DN',
-                    style: TextStyle(
-                      fontSize:    12,
-                      fontWeight:  FontWeight.w700,
-                      color:       AppColors.primary,
+                child: authState.when(
+                  data: (authResult) {
+                    if (authResult == null) {
+                      return CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.primary.withOpacity(0.12),
+                        child: const Icon(Icons.person_rounded, size: 18),
+                      );
+                    }
+                    final initials = _getInitials(authResult.fullname);
+                    return CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppColors.primary.withOpacity(0.12),
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          fontFamily:  'Inter',
+                          fontSize:    12,
+                          fontWeight:  FontWeight.w700,
+                          color:       AppColors.primary,
+                        ),
+                      ),
+                    );
+                  },
+                  loading: () => CircleAvatar(
+                    radius: 18,
+                    backgroundColor: AppColors.primary.withOpacity(0.12),
+                    child: const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
                     ),
+                  ),
+                  error: (e, st) => CircleAvatar(
+                    radius: 18,
+                    backgroundColor: AppColors.error.withOpacity(0.12),
+                    child: const Icon(Icons.error_rounded, size: 18),
                   ),
                 ),
               ),
