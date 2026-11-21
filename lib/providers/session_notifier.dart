@@ -202,6 +202,15 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
 
   
     Future<void> endSession() async {
+      // Now called from two places — the explicit "End Session" button
+      // and the auto-expiry ticker in session_controller.dart — so this
+      // must tolerate being invoked after the session is already idle/
+      // ended (e.g. the lecturer taps the button right after the window
+      // auto-expired) instead of redoing teardown/absent-computation/sync.
+      if (state.isIdle || state.isEnded) {
+        print('[SESSION_NOTIFIER] endSession() called with no active session — ignoring');
+        return;
+      }
       try{
         _presentIntervalTimer?.cancel();
         _presentIntervalTimer = null;

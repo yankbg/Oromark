@@ -16,6 +16,7 @@ import 'package:oromark/providers/udp_service_provider.dart';
 import 'package:oromark/providers/attendance_submission_provider.dart';
 import '../../../data/database/app_database.dart';
 import '../../../providers/app_database_provider.dart';
+import '../../../providers/session_notifier.dart';
 
 // ── Window enum ───────────────────────────────────────────────────────────────
 
@@ -200,6 +201,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
   final int _enrolled;
   final UdpService _udpService;
   final LocalAttendanceServer _attendanceServer;
+  final Ref _ref;
 
   SessionController({
     required AppDatabase db,
@@ -209,6 +211,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
     required int enrolled,
     required UdpService udpService,
     required LocalAttendanceServer attendanceServer,
+    required Ref ref,
   })
       : _db = db,
         _sessionId = sessionId,
@@ -217,6 +220,7 @@ class SessionController extends StateNotifier<ActiveSessionState> {
         _enrolled = enrolled,
         _attendanceServer = attendanceServer,
         _udpService = udpService,
+        _ref = ref,
         super(_buildInitialState(sessionId,courseCode, courseName, enrolled)) {
     _startTicker();
     _subscribeToAttendance();
@@ -318,6 +322,14 @@ class SessionController extends StateNotifier<ActiveSessionState> {
         state = state.copyWith(window: SessionWindow.late);
       } else if (state.window == SessionWindow.late &&
           now.isAfter(state.lateCutoff)) {
+        // Auto-expiry must do the same real finalization the explicit
+        // "End Session" button does — compute absences, write
+        // status=ENDED locally, and sync to Neon. Previously this only
+        // flipped the in-memory display state, so a lecturer who let the
+        // countdown run out instead of tapping the button left the
+        // session ACTIVE forever, both locally and on the admin
+        // dashboard, no matter how much later they reopened the app.
+        unawaited(_ref.read(sessionNotifierProvider.notifier).endSession());
         state = state.copyWith(window: SessionWindow.ended);
         _ticker?.cancel();
       } else {
@@ -436,5 +448,6 @@ final sessionControllerProvider = StateNotifierProvider.family<
     enrolled: params.enrolled,
     udpService: ref.watch(udpServiceProvider),
     attendanceServer: ref.watch(localAttendanceServerProvider),
+    ref: ref,
   ),
 );
