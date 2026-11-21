@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../presentation/student/profile/profile_screen.dart';
 import '../../providers/student_avatar_provider.dart';
 import '../theme/app_colors.dart';
 
@@ -29,29 +30,34 @@ class StudentAvatar extends ConsumerWidget {
     final avatarUrl = student?.avatarUrl;
     final initials = student != null ? _initials(student.studentName) : '';
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.primary.withOpacity(0.10),
-        border: Border.all(color: AppColors.primary, width: 1.5),
-        image: (avatarUrl != null && avatarUrl.isNotEmpty)
-            ? DecorationImage(image: NetworkImage(avatarUrl), fit: BoxFit.cover)
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+      ),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.primary.withOpacity(0.10),
+          border: Border.all(color: AppColors.primary, width: 1.5),
+          image: (avatarUrl != null && avatarUrl.isNotEmpty)
+              ? DecorationImage(image: NetworkImage(avatarUrl), fit: BoxFit.cover)
+              : null,
+        ),
+        child: (avatarUrl == null || avatarUrl.isEmpty)
+            ? Center(
+                child: Text(
+                  initials,
+                  style: TextStyle(
+                    fontSize: size * 0.38,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
+                ),
+              )
             : null,
       ),
-      child: (avatarUrl == null || avatarUrl.isEmpty)
-          ? Center(
-              child: Text(
-                initials,
-                style: TextStyle(
-                  fontSize: size * 0.38,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
-                ),
-              ),
-            )
-          : null,
     );
   }
 }
