@@ -434,7 +434,16 @@ class AppDatabase extends _$AppDatabase {
   /// after a successful attendance submission to make the course name/date
   /// available to that student's own history screen.
   Future<void> upsertSessionMeta(SessionsCompanion entry) {
-    return into(sessions).insertOnConflictUpdate(entry);
+    // insertOnConflictUpdate() with no explicit target resolves conflicts
+    // against the table's primary key (the autoincrement `id`, never
+    // supplied here) — not the actually-unique `sessionId` — so a session
+    // already cached locally fell through to a bare insert and hit the
+    // real unique index on sessionId uncaught. Targeting it explicitly
+    // makes this a real upsert.
+    return into(sessions).insert(
+      entry,
+      onConflict: DoUpdate((old) => entry, target: [sessions.sessionId]),
+    );
   }
 
   Future<Session?> getSessionById(String sessionId) {
