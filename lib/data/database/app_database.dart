@@ -548,6 +548,19 @@ class AppDatabase extends _$AppDatabase {
       ..orderBy([(s) => OrderingTerm.desc(s.startTime)]))
         .get();
   }
+
+  /// Every ENDED session across the given course codes, oldest first —
+  /// drives the lecturer's Reports screen. Scoped to specific course codes
+  /// (not "all local sessions") so a device that's had more than one
+  /// lecturer log in over time never mixes another lecturer's sessions
+  /// into this one's report.
+  Future<List<Session>> getEndedSessionsForCourses(List<String> courseCodes) {
+    if (courseCodes.isEmpty) return Future.value(const []);
+    return (select(sessions)
+      ..where((s) => s.courseCode.isIn(courseCodes) & s.status.equals('ENDED'))
+      ..orderBy([(s) => OrderingTerm.asc(s.startTime)]))
+        .get();
+  }
   /// Insert attendance record after HTTP success
   /// Same [synced] staleness concern as [updateSessionStatus] — a record
   /// already pushed to Neon (e.g. a student's normal submission) that then

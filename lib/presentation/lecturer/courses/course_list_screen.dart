@@ -13,6 +13,8 @@ import 'package:oromark/presentation/lecturer/session/select_course_screen.dart'
 import 'package:oromark/presentation/lecturer/session/start_session_sheet.dart';
 import 'package:oromark/providers/auth_state_provider.dart';
 import 'package:oromark/data/models/auth_result.dart';
+import 'package:oromark/presentation/lecturer/profile/profile_screen.dart';
+import 'package:oromark/presentation/lecturer/reports/reports_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import 'course_card.dart';
 import 'course_controller.dart';
@@ -175,6 +177,8 @@ class _TopBar extends StatelessWidget {
                   //   ),
                   // ),
                   // const SizedBox(width: 12),
+                  Image.asset('assets/icon/logo_mark_primary.png', height: 26, fit: BoxFit.contain),
+                  const SizedBox(width: 8),
                   const Text(
                     'OROmark',
                     style: TextStyle(
@@ -187,9 +191,22 @@ class _TopBar extends StatelessWidget {
                   ),
                   const Spacer(),
 
+                  // Reports
+                  IconButton(
+                    icon: const Icon(Icons.bar_chart_rounded, color: AppColors.primary),
+                    tooltip: 'Reports',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                    ),
+                  ),
+
                   //  Dynamic avatar with initials from logged-in lecturer
                   GestureDetector(
-                    onTap: () {},
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LecturerProfileScreen(),
+                      ),
+                    ),
                     child: authState.when(
                       data: (authResult) {
                         if (authResult == null) {
@@ -391,14 +408,11 @@ class _CourseBody extends StatelessWidget {
           const SizedBox(height: 14),
 
           // Cards — one per course
-          ...courses.asMap().entries.map((entry) {
-            final index  = entry.key;
-            final course = entry.value;
+          ...courses.map((course) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: CourseCard(
                 course:         course,
-                index:          index,
                 onStartSession: () => onStartSession(
                     course.courseCode, course.courseName),
                 onViewDetails:  () => onViewDetails(course),

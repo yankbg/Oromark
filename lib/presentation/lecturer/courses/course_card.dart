@@ -7,30 +7,14 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/course_model.dart';
 
-// Badge colour pairs cycling through the three brand accents.
-// Index 0 = amber, 1 = mint-green, 2 = sage — matches the HTML design.
-const _kBadgeColors = [
-  _BadgeColor(bg: Color(0xFFFFDCBB), fg: Color(0xFF2B1700)), // amber
-  _BadgeColor(bg: Color(0xFFA0F3D4), fg: Color(0xFF002117)), // mint
-  _BadgeColor(bg: Color(0xFFD2E7E0), fg: Color(0xFF0C1F1B)), // sage
-];
-
-class _BadgeColor {
-  final Color bg;
-  final Color fg;
-  const _BadgeColor({required this.bg, required this.fg});
-}
-
 class CourseCard extends StatefulWidget {
   final CourseModel course;
-  final int index; // used to pick badge colour
   final VoidCallback onStartSession;
   final VoidCallback onViewDetails;
 
   const CourseCard({
     super.key,
     required this.course,
-    required this.index,
     required this.onStartSession,
     required this.onViewDetails,
   });
@@ -44,7 +28,6 @@ class _CourseCardState extends State<CourseCard> {
 
   @override
   Widget build(BuildContext context) {
-    final badge = _kBadgeColors[widget.index % _kBadgeColors.length];
     final c = widget.course;
 
     return GestureDetector(
@@ -73,11 +56,7 @@ class _CourseCardState extends State<CourseCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _CodeBadge(
-                          code:  c.courseCode,
-                          bg:    badge.bg,
-                          fg:    badge.fg,
-                        ),
+                        _CodeBadge(code: c.courseCode),
                         const SizedBox(height: 6),
                         Text(
                           c.courseName,
@@ -199,27 +178,28 @@ class _CourseCardState extends State<CourseCard> {
 
 // ── Private sub-widgets ──────────────────────────────────────────────────────
 
+// Same pill treatment as the student/lecturer ID badges elsewhere in the
+// app (secondary amber at low opacity) — one stable color per role, not a
+// decorative hue cycled by list position.
 class _CodeBadge extends StatelessWidget {
   final String code;
-  final Color  bg;
-  final Color  fg;
-  const _CodeBadge({required this.code, required this.bg, required this.fg});
+  const _CodeBadge({required this.code});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color:        bg,
+        color:        AppColors.secondary.withOpacity(0.12),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         code.toUpperCase(),
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily:    'Inter',
           fontSize:      10,
           fontWeight:    FontWeight.w700,
-          color:         fg,
+          color:         AppColors.secondary,
           letterSpacing: 0.5,
         ),
       ),
