@@ -70,7 +70,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   const SizedBox(height: 20),
 
                   // ── Attendance overview chart ──────────
-                  _AttendanceChartCard(records: _ctrl.all),
+                  _AttendanceChartCard(
+                    records: _ctrl.all,
+                    attendanceRate: _ctrl.attendanceRate,
+                  ),
                   const SizedBox(height: 20),
 
                   // ── Summary bento card ─────────────────
@@ -463,9 +466,15 @@ class _StatPill extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _AttendanceChartCard extends StatelessWidget {
   final List<HistoryRecord> records;
-  const _AttendanceChartCard({required this.records});
+  // Student's overall attendance rate (0.0–1.0, same weighting as the
+  // bars' own height factors below) — drawn as a reference line so the
+  // chart shows each session against the running average, not just in
+  // isolation.
+  final double attendanceRate;
+  const _AttendanceChartCard({required this.records, required this.attendanceRate});
 
   static const _maxBars = 20;
+  static const _plotHeight = 110.0;
   static const _monthAbbr = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -518,17 +527,46 @@ class _AttendanceChartCard extends StatelessWidget {
           const SizedBox(height: 18),
 
           SizedBox(
-            height: 110,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            height: _plotHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                for (final r in windowed)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                      child: _AttendanceBar(status: r.status),
-                    ),
+                // Bar width and the gap between bars are sized independently
+                // here (rather than one Expanded column per bar, where a
+                // thinner bar only ever means a wider gap) — a small fixed
+                // gap keeps bars tightly packed regardless of how thin they
+                // are; any leftover width becomes outer margin instead.
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const gap = 2.0;
+                    final count = windowed.length;
+                    final columnWidth = constraints.maxWidth / count;
+                    final barWidth = (columnWidth * 0.3).clamp(2.0, columnWidth);
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        for (var i = 0; i < count; i++) ...[
+                          if (i > 0) const SizedBox(width: gap),
+                          SizedBox(
+                            width: barWidth,
+                            height: _plotHeight,
+                            child: _AttendanceBar(status: windowed[i].status),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: _plotHeight * attendanceRate.clamp(0.0, 1.0) - 0.75,
+                  child: Container(
+                    height: 1.5,
+                    color: AppColors.primary.withOpacity(0.5),
                   ),
+                ),
               ],
             ),
           ),
@@ -588,12 +626,14 @@ class _AttendanceBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FractionallySizedBox(
+      // Width now comes from the fixed SizedBox the caller wraps this in
+      // (see _AttendanceChartCard) — only height is fractional here.
       alignment: Alignment.bottomCenter,
       heightFactor: _heightFactor,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: _color,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+          borderRadius: BorderRadius.circular(999),
         ),
       ),
     );
