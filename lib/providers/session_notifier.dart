@@ -223,14 +223,25 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
         await ref.read(httpServerProvider).stopServer();
         await ref.read(localAttendanceServerProvider).stop();
 
-        // Compute and insert absent records
-        await _computeAbsent();
-
-        // Update session status in database
+        // Update session status in database first — this must land
+        // regardless of whether absent-computation below succeeds, since
+        // it's what the sync below (and the admin dashboard) rely on to
+        // know the session is over. A failure in absence-computation used
+        // to short-circuit this write, leaving the session ACTIVE forever
+        // in Neon/admin even though the lecturer's screen showed it ended.
         final currentState = state;
         if (currentState.sessionId != null) {
           final db = ref.read(appDatabaseProvider);
           await db.updateSessionStatus(currentState.sessionId!, 'ENDED');
+        }
+
+        // Compute and insert absent records. Failure here must not block
+        // the status write/sync — an absent-computation error shouldn't
+        // leave the session stuck ACTIVE in Neon/admin.
+        try {
+          await _computeAbsent();
+        } catch (e) {
+          print('[BROADCAST_END] Error computing absences: $e');
         }
 
         // Back up this session to Neon the moment it's finalized, instead
@@ -265,7 +276,8 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
       if (currentState.sessionId == null || currentState.courseCode == null) return;
 
       final db = ref.read(appDatabaseProvider);
-      try{
+      List<EnrolledStudent> absentStudents;
+      try {
         // Get all submitted students for this session
         final submitted = await db.getSessionAttendance(
           currentState.sessionId!,
@@ -277,10 +289,24 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
         );
 
         // Find students who didn't submit (absent)
-        final absentStudents =
-        enrolled.where((s) => !submittedIds.contains(s.studentId));
-        // Insert ABSENT records for each non-submitter
-        for (final student in absentStudents) {
+        absentStudents =
+            enrolled.where((s) => !submittedIds.contains(s.studentId)).toList();
+      } catch (e) {
+        print('Error reading submitted/enrolled students for absent computation: $e');
+        return;
+      }
+
+      // Insert ABSENT records one at a time, each in its own try/catch — a
+      // single student's row failing (e.g. a leftover duplicate for a
+      // courseCode/sessionId pair) used to throw out of the whole loop,
+      // silently zeroing out every other absent student's record for that
+      // session too (observed in Neon: sessions with a full roster but
+      // zero ABSENT rows at all, even though nobody but one student had
+      // actually submitted). Each insert is now independent so one bad
+      // row can never cost the rest of the class their attendance record.
+      var inserted = 0;
+      for (final student in absentStudents) {
+        try {
           await db.insertAttendance(
             AttendanceRecordsCompanion.insert(
               sessionId: currentState.sessionId!,
@@ -289,32 +315,15 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
               timestamp: DateTime.now().millisecondsSinceEpoch,
             ),
           );
+          inserted++;
+        } catch (e) {
+          print('Error recording ABSENT for ${student.studentId}: $e');
         }
-        print(
-          'Computed absent: ${absentStudents.length} absent records created '
-              'for session ${currentState.sessionId}',
-        );
-      }catch(e){
-        print('Error computing absent records: $e');
-        rethrow;
       }
-
-
-
-
-
-      // for (final student in enrolled) {
-      //   if (!submittedIds.contains(student.studentId)) {
-      //     await db.insertAttendance(
-      //       AttendanceRecordsCompanion.insert(
-      //         sessionId:         currentState.sessionId!,
-      //         studentId:         student.studentId,
-      //         status:            'ABSENT',
-      //         timestamp:         DateTime.now().millisecondsSinceEpoch,
-      //       ),
-      //     );
-      //   }
-      // }
+      print(
+        'Computed absent: $inserted/${absentStudents.length} absent records created '
+            'for session ${currentState.sessionId}',
+      );
     }
     void switchToLateInterval() {
       final currentState = state;
