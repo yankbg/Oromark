@@ -16,6 +16,7 @@ import 'package:oromark/data/models/auth_result.dart';
 import 'package:oromark/presentation/lecturer/profile/profile_screen.dart';
 import 'package:oromark/presentation/lecturer/reports/reports_screen.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/staggered_fade_in.dart';
 import 'course_card.dart';
 import 'course_controller.dart';
 
@@ -408,14 +409,20 @@ class _CourseBody extends StatelessWidget {
           const SizedBox(height: 14),
 
           // Cards — one per course
-          ...courses.map((course) {
+          ...courses.asMap().entries.map((entry) {
+            final index = entry.key;
+            final course = entry.value;
             return Padding(
+              key: ValueKey(course.courseCode),
               padding: const EdgeInsets.only(bottom: 12),
-              child: CourseCard(
-                course:         course,
-                onStartSession: () => onStartSession(
-                    course.courseCode, course.courseName),
-                onViewDetails:  () => onViewDetails(course),
+              child: StaggeredFadeIn(
+                index: index,
+                child: CourseCard(
+                  course:         course,
+                  onStartSession: () => onStartSession(
+                      course.courseCode, course.courseName),
+                  onViewDetails:  () => onViewDetails(course),
+                ),
               ),
             );
           }),

@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/presentation/student/home/student_home_screen.dart';
 import 'package:oromark/presentation/student/profile/profile_screen.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/radar_loading_indicator.dart';
+import '../../../core/widgets/staggered_fade_in.dart';
 import '../../../core/widgets/student_avatar.dart';
 import 'history_controller.dart';
 import 'history_item.dart';
@@ -55,7 +57,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           Expanded(
             child: _ctrl.isLoading
                 ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+              child: RadarLoadingIndicator(),
             )
                 : RefreshIndicator(
               color: AppColors.primary,
@@ -100,8 +102,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   if (_ctrl.filtered.isEmpty)
                     _EmptyState(filter: _ctrl.activeFilter)
                   else
-                    ..._ctrl.filtered.map(
-                          (r) => HistoryItem(key: ValueKey(r.id), record: r),
+                    ..._ctrl.filtered.asMap().entries.map(
+                          (entry) => StaggeredFadeIn(
+                            key: ValueKey(entry.value.id),
+                            index: entry.key,
+                            child: HistoryItem(record: entry.value),
+                          ),
                     ),
 
                   // ── Load more ──────────────────────────
@@ -682,7 +688,19 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: [
-          Icon(Icons.inbox_outlined, size: 52, color: AppColors.textTertiary),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.event_note_rounded,
+              size: 32,
+              color: AppColors.primary,
+            ),
+          ),
           const SizedBox(height: 12),
           Text(
             filter == HistoryFilter.all

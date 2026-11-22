@@ -757,26 +757,52 @@ class _SuccessOverlayState extends State<_SuccessOverlay>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Elastic bounce checkmark orb
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.5, end: 1.0),
-                duration: const Duration(milliseconds: 550),
-                curve: Curves.elasticOut,
-                builder: (_, scale, child) =>
-                    Transform.scale(scale: scale, child: child),
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
+              // A single expanding ring ties this moment back to the home
+              // screen's scanning-hero motif — the radar that was
+              // "listening" resolves into this success ping, instead of a
+              // hard cut from one unrelated visual to another.
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.6, end: 2.0),
+                    duration: const Duration(milliseconds: 750),
+                    curve: Curves.easeOut,
+                    builder: (_, scale, child) => Opacity(
+                      opacity: (1.0 - (scale - 0.6) / 1.4).clamp(0.0, 1.0) * 0.5,
+                      child: Transform.scale(scale: scale, child: child),
+                    ),
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.verified_rounded,
-                    size: 70,
-                    color: AppColors.primary,
+                  // Elastic bounce checkmark orb
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.5, end: 1.0),
+                    duration: const Duration(milliseconds: 550),
+                    curve: Curves.elasticOut,
+                    builder: (_, scale, child) =>
+                        Transform.scale(scale: scale, child: child),
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                      ),
+                      child: const Icon(
+                        Icons.verified_rounded,
+                        size: 70,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
               const SizedBox(height: 32),
               const Text(

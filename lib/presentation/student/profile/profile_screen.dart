@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/radar_loading_indicator.dart';
 import '../../../core/widgets/student_avatar.dart';
 import '../../../providers/app_database_provider.dart';
 import '../../../providers/auth_state_provider.dart';
@@ -133,7 +134,7 @@ class _Body extends StatelessWidget {
     // Loading skeleton
     if (isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+        child: RadarLoadingIndicator(),
       );
     }
 

@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/radar_loading_indicator.dart';
 import '../../../data/models/auth_result.dart';
 import '../../../providers/auth_state_provider.dart';
 
@@ -100,7 +101,7 @@ class LecturerProfileScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
+          child: RadarLoadingIndicator(),
         ),
         error: (e, st) => Center(
           child: Text(

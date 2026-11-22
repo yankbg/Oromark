@@ -20,6 +20,7 @@ import 'package:oromark/core/utils/room_code_generator.dart';
 import 'package:oromark/presentation/lecturer/courses/course_controller.dart';
 import 'package:oromark/providers/session_notifier.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/radar_loading_indicator.dart';
 import '../../../data/models/course_model.dart';
 import 'active_session_screen.dart';
 
@@ -518,7 +519,7 @@ List<Widget> _buildListChildren(
       Padding(
         padding: EdgeInsets.symmetric(vertical: 48),
         child: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
+          child: RadarLoadingIndicator(),
         ),
       ),
     ];

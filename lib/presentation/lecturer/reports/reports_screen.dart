@@ -13,6 +13,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/radar_loading_indicator.dart';
 import '../../../providers/app_database_provider.dart';
 import 'reports_controller.dart';
 
@@ -63,7 +64,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ),
       ),
       body: state.isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(child: RadarLoadingIndicator())
           : state.error != null
               ? _ErrorState(message: state.error!, onRetry: _ctrl.refresh)
               : state.sessions.isEmpty

@@ -13,22 +13,28 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
   import '../data/services/sync_service.dart';
   import '../providers/ble_service_provider.dart';
   import 'package:riverpod_annotation/riverpod_annotation.dart';
-  
+
   part 'session_notifier.g.dart';
-  
+
+  // This provider can auto-dispose (e.g. when the screen watching it
+  // unmounts between sessions) — a disposed instance's own timers are
+  // cancelled below so a stale one never fires against a later, unrelated
+  // session. endSession() does NOT otherwise trust this instance's own
+  // in-memory `state` for anything critical: a fresh/reset instance
+  // (disposed-and-recreated, or any other cause of lost state) used to
+  // make endSession() silently no-op — including never calling
+  // stopBroadcasting() — because its state looked idle even though the
+  // UDP broadcast (a separate, long-lived singleton) was still genuinely
+  // running. endSession() below always stops the real services first,
+  // unconditionally, and resolves which session it's ending from the
+  // database as a fallback — so that failure mode can't recur regardless
+  // of what this instance's own memory of things happens to be.
   @riverpod
-  
   class SessionNotifier extends _$SessionNotifier {
     Timer? _presentIntervalTimer;
     Timer? _lateIntervalTimer;
     @override
     SessionState build() {
-      // This provider auto-disposes (e.g. when the screen watching it
-      // unmounts between sessions). Without this, a leaked timer from a
-      // disposed instance keeps running and later fires switchToLateInterval()
-      // against the shared UdpService/LocalAttendanceServer singletons,
-      // incorrectly flipping whatever session happens to be active at that
-      // moment to LATE — even one that just started.
       ref.onDispose(() {
         _presentIntervalTimer?.cancel();
         _presentIntervalTimer = null;
@@ -202,44 +208,80 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
 
   
     Future<void> endSession() async {
-      // Now called from two places — the explicit "End Session" button
-      // and the auto-expiry ticker in session_controller.dart — so this
-      // must tolerate being invoked after the session is already idle/
-      // ended (e.g. the lecturer taps the button right after the window
-      // auto-expired) instead of redoing teardown/absent-computation/sync.
-      if (state.isIdle || state.isEnded) {
-        print('[SESSION_NOTIFIER] endSession() called with no active session — ignoring');
+      // Stop every live side effect first, unconditionally, before anything
+      // else — these calls are all idempotent (a no-op if already stopped)
+      // and must never be gated behind this notifier's own in-memory
+      // `state`. That state is not a reliable signal of whether a session
+      // is actually still broadcasting: it only reflects whatever this
+      // notifier *remembers*, and this exact class of bug (a disposed-
+      // and-recreated or otherwise-reset instance silently believing
+      // nothing is active while UdpService/BleService/the HTTP server —
+      // separate, long-lived singletons — keep right on running) is what
+      // has twice now left a session broadcasting forever despite "End
+      // Session" being tapped. So: always try to stop them, no guard.
+      _presentIntervalTimer?.cancel();
+      _presentIntervalTimer = null;
+      _lateIntervalTimer?.cancel();
+      _lateIntervalTimer = null;
+      ref.read(udpServiceProvider).stopBroadcasting();
+      await ref.read(bleServiceProvider).stopAdvertising();
+      await ref.read(httpServerProvider).stopServer();
+      await ref.read(localAttendanceServerProvider).stop();
+      print('[SESSION_NOTIFIER] Stopped broadcast/advertising/servers unconditionally');
+
+      // Resolve which session we're actually ending. Prefer this
+      // notifier's own in-memory state; if that's unavailable for any
+      // reason, fall back to the database's own ACTIVE row — written the
+      // moment the session started, and a durable source of truth this
+      // notifier's memory isn't.
+      final db = ref.read(appDatabaseProvider);
+      var sessionId = state.sessionId;
+      var courseCode = state.courseCode;
+      if (sessionId == null || courseCode == null) {
+        final active = await db.getActiveSessions();
+        if (active.isEmpty) {
+          print('[SESSION_NOTIFIER] endSession(): no active session in memory or in the '
+              'database — already stopped services defensively above, nothing further to do');
+          state = SessionState.ended();
+          return;
+        }
+        // Only ever one session runs at a time on this device; if that
+        // were ever violated, ending the most recently started one is the
+        // safest default.
+        active.sort((a, b) => b.startTime.compareTo(a.startTime));
+        sessionId = active.first.sessionId;
+        courseCode = active.first.courseCode;
+        print('[SESSION_NOTIFIER] endSession(): in-memory state had nothing active — '
+            'resolved session $sessionId from the database instead');
+      }
+
+      // Ground-truth, DB-backed guard against redoing work for a session
+      // that's already been finalized (the explicit button and the
+      // auto-expiry ticker can both fire for the same session) — checked
+      // against the session's actual stored status, not this notifier's
+      // own state, for the same reason the teardown above doesn't trust it.
+      final sessionRow = await db.getSessionById(sessionId);
+      if (sessionRow != null && sessionRow.status == 'ENDED') {
+        print('[SESSION_NOTIFIER] endSession(): session $sessionId is already ENDED in '
+            'the database — skipping absent-computation/sync to avoid duplicate records');
+        state = SessionState.ended();
         return;
       }
-      try{
-        _presentIntervalTimer?.cancel();
-        _presentIntervalTimer = null;
-        _lateIntervalTimer?.cancel();
-        _lateIntervalTimer = null;
-        print('[SESSION_NOTIFIER] Cancelled scheduled timers on session end');
-        // Stop advertising new submissions
-        ref.read(udpServiceProvider).stopBroadcasting();
-        await ref.read(bleServiceProvider).stopAdvertising();
-        await ref.read(httpServerProvider).stopServer();
-        await ref.read(localAttendanceServerProvider).stop();
 
+      try {
         // Update session status in database first — this must land
         // regardless of whether absent-computation below succeeds, since
         // it's what the sync below (and the admin dashboard) rely on to
         // know the session is over. A failure in absence-computation used
         // to short-circuit this write, leaving the session ACTIVE forever
         // in Neon/admin even though the lecturer's screen showed it ended.
-        final currentState = state;
-        if (currentState.sessionId != null) {
-          final db = ref.read(appDatabaseProvider);
-          await db.updateSessionStatus(currentState.sessionId!, 'ENDED');
-        }
+        await db.updateSessionStatus(sessionId, 'ENDED');
 
         // Compute and insert absent records. Failure here must not block
         // the status write/sync — an absent-computation error shouldn't
         // leave the session stuck ACTIVE in Neon/admin.
         try {
-          await _computeAbsent();
+          await _computeAbsent(sessionId: sessionId, courseCode: courseCode);
         } catch (e) {
           print('[BROADCAST_END] Error computing absences: $e');
         }
@@ -250,7 +292,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
         // value data to not lose if the phone is lost/wiped before then.
         // Fire-and-forget: never blocks the UI, no-ops if unconfigured or
         // offline (see sync_service.dart).
-        unawaited(SyncService(ref.read(appDatabaseProvider)).syncNow());
+        unawaited(SyncService(db).syncNow());
 
         // Mark as ended
         state = SessionState.ended();
@@ -270,23 +312,23 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
     /// 4. Insert ABSENT records for gap
     ///
     /// Side effect: Updates database with ABSENT records
-    Future<void> _computeAbsent() async {
-      final currentState = state;
-      // Guard: must have valid session
-      if (currentState.sessionId == null || currentState.courseCode == null) return;
-
+    ///
+    /// Takes sessionId/courseCode explicitly instead of reading `state` —
+    /// endSession() may have resolved these from the database rather than
+    /// from this notifier's own (possibly stale) state, and that resolved
+    /// identity is the one that must be used here too.
+    Future<void> _computeAbsent({
+      required String sessionId,
+      required String courseCode,
+    }) async {
       final db = ref.read(appDatabaseProvider);
       List<EnrolledStudent> absentStudents;
       try {
         // Get all submitted students for this session
-        final submitted = await db.getSessionAttendance(
-          currentState.sessionId!,
-        );
+        final submitted = await db.getSessionAttendance(sessionId);
         final submittedIds = submitted.map((r) => r.studentId).toSet();
         // Get all enrolled students for this course
-        final enrolled = await db.getEnrolledStudents(
-          currentState.courseCode!,
-        );
+        final enrolled = await db.getEnrolledStudents(courseCode);
 
         // Find students who didn't submit (absent)
         absentStudents =
@@ -309,7 +351,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
         try {
           await db.insertAttendance(
             AttendanceRecordsCompanion.insert(
-              sessionId: currentState.sessionId!,
+              sessionId: sessionId,
               studentId: student.studentId,
               status: 'ABSENT',
               timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -322,7 +364,7 @@ import 'package:oromark/providers/attendance_submission_provider.dart';
       }
       print(
         'Computed absent: $inserted/${absentStudents.length} absent records created '
-            'for session ${currentState.sessionId}',
+            'for session $sessionId',
       );
     }
     void switchToLateInterval() {

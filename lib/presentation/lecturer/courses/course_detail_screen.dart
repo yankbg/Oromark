@@ -7,6 +7,7 @@ import 'package:oromark/data/database/app_database.dart';
 import 'package:oromark/providers/app_database_provider.dart';
 import 'course_controller.dart';
 import 'package:oromark/core/theme/app_colors.dart';
+import 'package:oromark/core/widgets/radar_loading_indicator.dart';
 import 'package:oromark/data/models/course_model.dart';
 import 'package:oromark/presentation/lecturer/session/select_course_screen.dart';
 import 'package:oromark/presentation/lecturer/session/start_session_sheet.dart';
@@ -450,7 +451,7 @@ class _RecentSessionsSectionState extends ConsumerState<_RecentSessionsSection> 
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+              child: RadarLoadingIndicator(size: 36),
             ),
           )
         else if (_error != null)

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/services/sync_service.dart';
 import '../../../providers/app_database_provider.dart';
 import '../../../providers/auth_state_provider.dart';
 import '../profile/profile_screen.dart';
@@ -78,12 +81,21 @@ class _ManualOverrideScreenState extends ConsumerState<ManualOverrideScreen> {
     });
 
     final newStatus = _status.toUpperCase(); // PRESENT / LATE / ABSENT
-    await ref.read(appDatabaseProvider).insertAttendanceRecord(
+    final db = ref.read(appDatabaseProvider);
+    await db.insertAttendanceRecord(
           sessionId: widget.sessionId,
           studentId: _selected.studentId,
           status: newStatus,
           submittedAt: DateTime.now().millisecondsSinceEpoch,
         );
+    // Push this correction to Neon right away instead of waiting on
+    // whatever the next unrelated sync trigger happens to be (the app's
+    // 10-minute periodic timer, or the next time a session ends) — a
+    // manual override is exactly the kind of correction a student is
+    // likely to check their own History screen for soon after, and until
+    // this reaches Neon, SyncService.pullStudentData has nothing newer to
+    // pull down to their device. Fire-and-forget, same as endSession().
+    unawaited(SyncService(db).syncNow());
     if (!mounted) return;
 
     setState(() {

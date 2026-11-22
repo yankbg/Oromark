@@ -135,6 +135,9 @@ class StatCard extends StatelessWidget {
   final int?   total;  // null = no denominator
   final double percentage; // 0.0 to 1.0
   final Color  color;
+  // Lets callers stagger several StatCards' count-up animations instead of
+  // all of them ticking up in lockstep.
+  final Duration delay;
 
   const StatCard({
     super.key,
@@ -143,6 +146,7 @@ class StatCard extends StatelessWidget {
     this.total,
     required this.percentage,
     required this.color,
+    this.delay = Duration.zero,
   });
 
   @override
@@ -171,8 +175,9 @@ class StatCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '$count',
+              _CountUpText(
+                target: count,
+                delay:  delay,
                 style: TextStyle(
                   fontFamily:  'Inter',
                   fontSize:    40,
@@ -210,6 +215,49 @@ class StatCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Counts up from 0 to [target] once [delay] has elapsed, so a row of
+// StatCards can stagger their reveal instead of all ticking up at once.
+class _CountUpText extends StatefulWidget {
+  final int target;
+  final Duration delay;
+  final TextStyle style;
+
+  const _CountUpText({
+    required this.target,
+    required this.delay,
+    required this.style,
+  });
+
+  @override
+  State<_CountUpText> createState() => _CountUpTextState();
+}
+
+class _CountUpTextState extends State<_CountUpText> {
+  bool _started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delay == Duration.zero) {
+      _started = true;
+    } else {
+      Future.delayed(widget.delay, () {
+        if (mounted) setState(() => _started = true);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<int>(
+      tween: IntTween(begin: 0, end: _started ? widget.target : 0),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeOutCubic,
+      builder: (_, value, __) => Text('$value', style: widget.style),
     );
   }
 }

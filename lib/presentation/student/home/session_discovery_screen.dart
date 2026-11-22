@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/providers/session_discovery_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/radar_loading_indicator.dart';
 import 'student_home_controller.dart';
 import 'confirmation_screen.dart';
 
@@ -128,11 +129,7 @@ class _SessionList extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            RadarLoadingIndicator(size: 40),
             SizedBox(height: 16),
             Text(
               'Listening for broadcasts...',
@@ -216,13 +213,13 @@ class _EmptyState extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: AppColors.bgTertiary,
+              color: AppColors.primary.withOpacity(0.08),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.no_cell_rounded,
-              size: 40,
-              color: AppColors.textSecondary,
+              Icons.sensors_off_rounded,
+              size: 36,
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(height: 16),

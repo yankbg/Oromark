@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/radar_loading_indicator.dart';
+import '../../../providers/app_database_provider.dart';
 import '../../../providers/session_notifier.dart';
 import 'session_controller.dart';
 import 'session_stats.dart';
@@ -133,25 +135,75 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
           ),
         ),
       );
-      // [MOCK] — replace with real sessionNotifier.endSession()
+      // Built from the real post-end database state, not the `state`
+      // snapshot captured above (before the confirmation dialog even
+      // opened) — a check-in landing between opening that dialog and
+      // endSession()'s teardown actually finishing would still read as
+      // absent from that frozen snapshot, even though _computeAbsent()
+      // correctly excluded it moments later. Re-querying here keeps this
+      // screen's numbers from ever being able to diverge from what the
+      // lecturer's own Reports screen (SessionAttendanceController, same
+      // query shape) or the admin dashboard show for the same session.
+      final db = ref.read(appDatabaseProvider);
+      final enrolledStudents = await db.getEnrolledStudents(state.courseCode);
+      final finalRecords = await db.getSessionAttendance(params.sessionId);
+      final recordByStudent = {
+        for (final r in finalRecords) r.studentId: r,
+      };
+
+      var presentCount = 0;
+      var lateCount = 0;
+      final absentStudents = <StudentEntry>[];
+      for (final student in enrolledStudents) {
+        final record = recordByStudent[student.studentId];
+        switch (record?.status) {
+          case 'PRESENT':
+            presentCount++;
+          case 'LATE':
+            lateCount++;
+          default:
+            absentStudents.add(StudentEntry(
+              name: student.fullName,
+              studentId: student.studentId,
+              status: CheckInStatus.notCheckedIn,
+            ));
+        }
+      }
+
       final summary = SessionSummaryState(
         sessionId: params.sessionId,
         courseCode: state.courseCode,
         courseName: state.courseName,
         startedAt: state.startedAt,
         endedAt: DateTime.now(),
-        presentCount: state.presentCount,
-        lateCount: state.lateCount,
-        enrolled: state.enrolled,
-        absentStudents: state.students
-            .where((s) => s.status == CheckInStatus.notCheckedIn)
-            .toList(),
+        presentCount: presentCount,
+        lateCount: lateCount,
+        enrolled: enrolledStudents.length,
+        absentStudents: absentStudents,
       );
 
       if (mounted) {
+        // A plain route swap used to hard-cut from the live session
+        // straight to a static numbers screen — no acknowledgment that
+        // this is the payoff moment of the whole session. A brief
+        // fade+scale into the summary gives it some weight instead.
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => SessionSummaryScreen(state: summary),
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 350),
+            pageBuilder: (_, __, ___) => SessionSummaryScreen(state: summary),
+            transitionsBuilder: (_, animation, __, child) {
+              final curved = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              );
+              return FadeTransition(
+                opacity: curved,
+                child: ScaleTransition(
+                  scale: Tween(begin: 0.96, end: 1.0).animate(curved),
+                  child: child,
+                ),
+              );
+            },
           ),
         );
       }
@@ -164,7 +216,7 @@ class _ActiveSessionScreenState extends ConsumerState<ActiveSessionScreen> {
     if (params == null) {
       // Session not ready yet: show loading or empty UI
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: RadarLoadingIndicator()),
       );
     }
 

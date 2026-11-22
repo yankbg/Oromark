@@ -373,28 +373,49 @@ class AppDatabase extends _$AppDatabase {
   }
   /// Merges attendance history pulled from Neon (see SyncService.
   /// pullStudentData) into this student's own local history. A pulled row
-  /// for a session this device already has a record for (its own present/
-  /// late submission) is skipped — it's already correct and already
-  /// synced — so this only ever fills in sessions the device has no idea
-  /// happened at all, e.g. ones it was marked ABSENT for. There's no
-  /// unique constraint on (sessionId, studentId) to upsert against here
-  /// (unlike the Neon side), so the existence check is done in Dart
-  /// against one batch read instead of a query per record.
+  /// for a session this device already has a PRESENT/LATE record for (its
+  /// own live submission) is left alone — that's authoritative and already
+  /// synced. But a local ABSENT record can only ever have come from an
+  /// earlier pull (a student never submits themselves as absent — see
+  /// SessionNotifier._computeAbsent, which runs on the *lecturer's*
+  /// device), so if the lecturer has since corrected it — most commonly a
+  /// manual override from the session summary screen, ABSENT -> PRESENT/
+  /// LATE — the newer cloud value must replace the stale local one, or the
+  /// student's own History screen keeps showing ABSENT forever even after
+  /// every future pull, since the device believes it "already knows" about
+  /// that session. There's no unique constraint on (sessionId, studentId)
+  /// to upsert against here (unlike the Neon side), so this is done in
+  /// Dart against one batch read instead of a query per record.
   Future<void> mergeStudentAttendanceFromCloud(
     String studentId,
     List<AttendanceRecordsCompanion> pulled,
   ) async {
     final existing = await getStudentHistory(studentId);
-    final knownSessionIds = existing.map((r) => r.sessionId).toSet();
+    final existingBySession = {for (final r in existing) r.sessionId: r};
 
     for (final entry in pulled) {
       final sessionId = entry.sessionId.value;
-      if (knownSessionIds.contains(sessionId)) continue;
-      // Already confirmed present in Neon — came from there.
-      await into(attendanceRecords).insert(
-        entry.copyWith(synced: const Value(true)),
-      );
-      knownSessionIds.add(sessionId);
+      final localRecord = existingBySession[sessionId];
+
+      if (localRecord == null) {
+        // A session this device has no idea happened at all (e.g. one it
+        // was marked ABSENT for) — fill it in.
+        await into(attendanceRecords).insert(
+          entry.copyWith(synced: const Value(true)),
+        );
+        continue;
+      }
+
+      if (localRecord.status == 'ABSENT' &&
+          entry.status.value != localRecord.status) {
+        await (update(attendanceRecords)
+              ..where((a) => a.id.equals(localRecord.id)))
+            .write(AttendanceRecordsCompanion(
+          status: entry.status,
+          timestamp: entry.timestamp,
+          synced: const Value(true),
+        ));
+      }
     }
   }
 
@@ -450,6 +471,15 @@ class AppDatabase extends _$AppDatabase {
     return (select(sessions)
       ..where((s) => s.sessionId.equals(sessionId)))
         .getSingleOrNull();
+  }
+
+  /// Ground truth for "is there a session currently running on this
+  /// device", independent of whatever any in-memory provider/notifier
+  /// state currently claims — this row is written the moment a session
+  /// starts and is the durable fallback SessionNotifier.endSession() uses
+  /// when its own in-memory state has been lost for any reason.
+  Future<List<Session>> getActiveSessions() {
+    return (select(sessions)..where((s) => s.status.equals('ACTIVE'))).get();
   }
   /// Called when session ends to record final status.
   ///

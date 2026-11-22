@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oromark/providers/app_database_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/radar_loading_indicator.dart';
 import '../../../data/database/app_database.dart';
 import 'session_attendance_controller.dart';
 
@@ -125,7 +126,7 @@ class _SessionAttendanceScreenState
       ),
       body: _controller.isLoading
           ? const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+        child: RadarLoadingIndicator(),
       )
           : _controller.error != null
           ? _buildError()
